@@ -296,13 +296,21 @@ export class MemoryIndexManager {
       return vectorResults.filter((entry) => entry.score >= minScore).slice(0, maxResults);
     }
 
+    const reranker = this.settings.query.reranker;
     const merged = this.mergeHybridResults({
       vector: vectorResults,
       keyword: keywordResults,
       vectorWeight: hybrid.vectorWeight,
       textWeight: hybrid.textWeight,
+      reranker: {
+        method: reranker.method,
+        rrf: reranker.rrf,
+      },
     });
 
+    if (reranker.method === "rrf") {
+      return merged.slice(0, maxResults);
+    }
     return merged.filter((entry) => entry.score >= minScore).slice(0, maxResults);
   }
 
@@ -353,6 +361,10 @@ export class MemoryIndexManager {
     keyword: Array<MemorySearchResult & { id: string; textScore: number }>;
     vectorWeight: number;
     textWeight: number;
+    reranker?: {
+      method: "rrf" | "weighted" | "none";
+      rrf?: { k: number };
+    };
   }): MemorySearchResult[] {
     const merged = mergeHybridResults({
       vector: params.vector.map((r) => ({
@@ -375,6 +387,7 @@ export class MemoryIndexManager {
       })),
       vectorWeight: params.vectorWeight,
       textWeight: params.textWeight,
+      reranker: params.reranker,
     });
     return merged.map((entry) => entry as MemorySearchResult);
   }
