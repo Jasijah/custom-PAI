@@ -2,6 +2,15 @@ const KEY = "moltbot.control.settings.v1";
 
 import type { ThemeMode } from "./theme";
 
+export type ChatFontSize = "small" | "medium" | "large" | "x-large";
+
+export const CHAT_FONT_SIZE_PX: Record<ChatFontSize, number> = {
+  small: 13,
+  medium: 14,
+  large: 16,
+  "x-large": 18,
+};
+
 export type UiSettings = {
   gatewayUrl: string;
   token: string;
@@ -10,6 +19,7 @@ export type UiSettings = {
   theme: ThemeMode;
   chatFocusMode: boolean;
   chatShowThinking: boolean;
+  chatFontSize: ChatFontSize; // Chat text font size
   splitRatio: number; // Sidebar split ratio (0.4 to 0.7, default 0.6)
   navCollapsed: boolean; // Collapsible sidebar state
   navGroupsCollapsed: Record<string, boolean>; // Which nav groups are collapsed
@@ -29,6 +39,7 @@ export function loadSettings(): UiSettings {
     theme: "system",
     chatFocusMode: false,
     chatShowThinking: true,
+    chatFontSize: "medium",
     splitRatio: 0.6,
     navCollapsed: false,
     navGroupsCollapsed: {},
@@ -69,6 +80,13 @@ export function loadSettings(): UiSettings {
         typeof parsed.chatShowThinking === "boolean"
           ? parsed.chatShowThinking
           : defaults.chatShowThinking,
+      chatFontSize:
+        parsed.chatFontSize === "small" ||
+        parsed.chatFontSize === "medium" ||
+        parsed.chatFontSize === "large" ||
+        parsed.chatFontSize === "x-large"
+          ? parsed.chatFontSize
+          : defaults.chatFontSize,
       splitRatio:
         typeof parsed.splitRatio === "number" &&
         parsed.splitRatio >= 0.4 &&

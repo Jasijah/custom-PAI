@@ -325,6 +325,53 @@
   color: rgba(16, 24, 40, 0.3);
 }
 
+/* Font size control */
+.chat-controls__font-size {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat-controls__font-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.chat-controls__font-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2px;
+}
+
+.chat-controls__font-select {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  cursor: pointer;
+  min-width: 80px;
+}
+
+.chat-controls__font-select:hover {
+  border-color: var(--border-strong);
+}
+
+.chat-controls__font-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+:root[data-theme="light"] .chat-controls__font-select {
+  background: #ffffff;
+  border-color: var(--border);
+}
+
 .btn--icon:hover {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.2);

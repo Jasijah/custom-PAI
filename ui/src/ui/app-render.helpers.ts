@@ -9,6 +9,7 @@ import { syncUrlWithSessionKey } from "./app-settings";
 import type { SessionsListResult } from "./types";
 import type { ThemeMode } from "./theme";
 import type { ThemeTransitionContext } from "./theme-transition";
+import type { ChatFontSize } from "./storage";
 
 export function renderTab(state: AppViewState, tab: Tab) {
   const href = pathForTab(tab, state.basePath);
@@ -128,6 +129,44 @@ export function renderChatControls(state: AppViewState) {
       >
         ${focusIcon}
       </button>
+      <span class="chat-controls__separator">|</span>
+      ${renderFontSizeControl(state)}
+    </div>
+  `;
+}
+
+const FONT_SIZE_OPTIONS: Array<{ value: ChatFontSize; label: string }> = [
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+  { value: "x-large", label: "X-Large" },
+];
+
+function renderFontSizeControl(state: AppViewState) {
+  const currentSize = state.settings.chatFontSize ?? "medium";
+  const textIcon = html`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"></path><path d="M9 20h6"></path><path d="M12 4v16"></path></svg>`;
+  return html`
+    <div class="chat-controls__font-size">
+      <span class="chat-controls__font-icon" title="Font size">${textIcon}</span>
+      <select
+        class="chat-controls__font-select"
+        .value=${currentSize}
+        @change=${(e: Event) => {
+          const next = (e.target as HTMLSelectElement).value as ChatFontSize;
+          state.applySettings({
+            ...state.settings,
+            chatFontSize: next,
+          });
+        }}
+        title="Chat font size"
+      >
+        ${FONT_SIZE_OPTIONS.map(
+          (opt) =>
+            html`<option value=${opt.value} ?selected=${opt.value === currentSize}>
+              ${opt.label}
+            </option>`,
+        )}
+      </select>
     </div>
   `;
 }
