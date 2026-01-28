@@ -89,6 +89,15 @@ to each group for the change to take effect.
 Admin status is set inside the group (Telegram UI). Admin bots always receive all
 group messages, so use admin if you need full visibility.
 
+### Bot-to-bot messages (Telegram limitation)
+**Telegram Bot API does not deliver messages sent by other bots** — even if:
+- Your bot is a group admin
+- Privacy mode is disabled
+
+This is a [Telegram Bot API limitation](https://core.telegram.org/bots/faq#why-does-my-bot-not-see-messages-from-other-bots) designed to prevent feedback loops. Your bot cannot read messages from other bots in groups or DMs.
+
+If you need bot-to-bot communication, use out-of-band methods (HTTP calls, queues, or databases) instead of relying on Telegram group messages.
+
 ## How it works (behavior)
 - Inbound messages are normalized into the shared channel envelope with reply context and media placeholders.
 - Group replies require a mention by default (native @mention or `agents.list[].groupChat.mentionPatterns` / `messages.groupChat.mentionPatterns`).
