@@ -5,6 +5,7 @@ import path from "node:path";
 import JSON5 from "json5";
 import { z } from "zod";
 
+import { BRAND_DEFAULT_STATE_DIR } from "../branding.js";
 import { parseDurationMs } from "../cli/parse-duration.js";
 
 /**
@@ -633,7 +634,9 @@ export type ClawdisConfig = {
  * Default: ~/.clawdis
  */
 export const STATE_DIR_CLAWDIS =
-  process.env.CLAWDIS_STATE_DIR ?? path.join(os.homedir(), ".clawdis");
+  process.env.CLAWDIS_STATE_DIR ??
+  process.env.PAI_STATE_DIR ??
+  path.join(os.homedir(), BRAND_DEFAULT_STATE_DIR);
 
 /**
  * Config file path (JSON5).
@@ -642,6 +645,7 @@ export const STATE_DIR_CLAWDIS =
  */
 export const CONFIG_PATH_CLAWDIS =
   process.env.CLAWDIS_CONFIG_PATH ??
+  process.env.PAI_CONFIG_PATH ??
   path.join(STATE_DIR_CLAWDIS, "clawdis.json");
 
 export const DEFAULT_GATEWAY_PORT = 18789;

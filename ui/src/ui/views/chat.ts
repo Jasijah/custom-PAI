@@ -1,5 +1,6 @@
 import { html, nothing } from "lit";
 
+import type { ActionCard, VoicePrefs } from "../cognitive-store";
 import type { SessionsListResult } from "../types";
 import { resolveToolDisplay, formatToolDetail } from "../tool-display";
 
@@ -19,6 +20,16 @@ export type ChatProps = {
   onRefresh: () => void;
   onDraftChange: (next: string) => void;
   onSend: () => void;
+  actionCards: ActionCard[];
+  voice: VoicePrefs;
+  voiceSupported: boolean;
+  voiceListening: boolean;
+  onVoiceChange: (next: Partial<VoicePrefs>) => void;
+  onVoiceStart: () => void;
+  onVoiceStop: () => void;
+  onReadAloud: (text: string) => void;
+  onAction: (id: string, mode: "accepted" | "scheduled" | "dismissed") => void;
+  onReflect: (id: string, done: boolean, usefulness: number, obstacle: string) => void;
 };
 
 export function renderChat(props: ChatProps) {
@@ -70,9 +81,16 @@ export function renderChat(props: ChatProps) {
           </div>`
         : nothing}
 
+
+      ${props.actionCards.length
+        ? html`<div class="stack" style="margin-top: 12px;">
+            ${props.actionCards.map((card) => html`<div class="chat-tool-card"><div class="chat-tool-card__title">🧠 Action Card · ${card.title}</div><div class="chat-tool-card__detail">${card.whyRetrieved}</div><div class="row" style="margin-top:8px;"><button class="btn primary" @click=${() => props.onAction(card.id, "accepted")}>Accept</button><button class="btn" @click=${() => props.onAction(card.id, "scheduled")}>Schedule</button><button class="btn danger" @click=${() => props.onAction(card.id, "dismissed")}>Dismiss</button><button class="btn" @click=${() => props.onReflect(card.id, true, 4, "")}>Reflect</button></div></div>`)}
+          </div>`
+        : nothing}
+
       <div class="chat-thread" role="log" aria-live="polite">
         ${props.loading ? html`<div class="muted">Loading chat…</div>` : nothing}
-        ${props.messages.map((m) => renderMessage(m))}
+        ${props.messages.map((m) => renderMessage(m, { onReadAloud: props.onReadAloud }))}
         ${props.stream
           ? renderMessage(
               {
@@ -80,7 +98,7 @@ export function renderChat(props: ChatProps) {
                 content: [{ type: "text", text: props.stream }],
                 timestamp: Date.now(),
               },
-              { streaming: true },
+              { streaming: true, onReadAloud: props.onReadAloud },
             )
           : nothing}
       </div>
@@ -103,6 +121,10 @@ export function renderChat(props: ChatProps) {
           ></textarea>
         </label>
         <div class="row chat-compose__actions">
+          <button class="btn" ?disabled=${!props.voiceSupported} @click=${props.voiceListening ? props.onVoiceStop : props.onVoiceStart}>${props.voiceListening ? "Stop Mic" : "Mic"}</button>
+          <label class="row muted" style="gap:6px;"><input type="checkbox" .checked=${props.voice.autoRead} @change=${(e: Event) => props.onVoiceChange({ autoRead: (e.target as HTMLInputElement).checked })}/>Auto-read</label>
+          <label class="field" style="min-width:160px;"><span>Rate</span><input type="range" min="0.6" max="1.6" step="0.1" .value=${String(props.voice.rate)} @input=${(e: Event) => props.onVoiceChange({ rate: Number((e.target as HTMLInputElement).value) })}/></label>
+          <label class="field" style="min-width:160px;"><span>Pitch</span><input type="range" min="0.6" max="1.6" step="0.1" .value=${String(props.voice.pitch)} @input=${(e: Event) => props.onVoiceChange({ pitch: Number((e.target as HTMLInputElement).value) })}/></label>
           <button
             class="btn primary"
             ?disabled=${!props.canSend || props.sending}
@@ -166,7 +188,7 @@ function resolveSessionOptions(
   return result;
 }
 
-function renderMessage(message: unknown, opts?: { streaming?: boolean }) {
+function renderMessage(message: unknown, opts?: { streaming?: boolean; onReadAloud?: (text: string) => void }) {
   const m = message as Record<string, unknown>;
   const role = typeof m.role === "string" ? m.role : "unknown";
   const toolCards = extractToolCards(message);
@@ -188,6 +210,7 @@ function renderMessage(message: unknown, opts?: { streaming?: boolean }) {
       <div class="chat-msg">
         <div class="chat-bubble ${opts?.streaming ? "streaming" : ""}">
           ${text ? html`<div class="chat-text">${text}</div>` : nothing}
+          ${text && klass === "assistant" ? html`<div style="margin-top:8px;"><button class="btn" @click=${() => opts?.onReadAloud?.(text)}>Read</button></div>` : nothing}
           ${toolCards.map((card) => renderToolCard(card))}
         </div>
         <div class="chat-stamp mono">

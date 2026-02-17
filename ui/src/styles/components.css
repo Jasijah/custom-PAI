@@ -1,11 +1,17 @@
 .card {
   border: 1px solid var(--border);
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), transparent 65%),
+  background:
+    linear-gradient(160deg, rgba(130, 227, 255, 0.12), transparent 58%),
+    linear-gradient(240deg, rgba(122, 244, 141, 0.08), transparent 55%),
     var(--panel);
   border-radius: 16px;
   padding: 16px;
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+  box-shadow:
+    0 18px 36px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(186, 240, 255, 0.22),
+    0 0 0 1px rgba(72, 212, 255, 0.1);
   animation: rise 0.4s ease;
+  backdrop-filter: blur(14px) saturate(125%);
 }
 
 .card-title {
@@ -89,7 +95,8 @@
   border: 1px solid var(--border-strong);
   padding: 6px 12px;
   border-radius: 999px;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), transparent),
+  background:
+    linear-gradient(160deg, rgba(95, 217, 255, 0.2), rgba(95, 217, 255, 0.04)),
     var(--panel);
 }
 
@@ -183,7 +190,8 @@
 
 .btn {
   border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.04);
+  background:
+    linear-gradient(160deg, rgba(95, 217, 255, 0.18), rgba(95, 217, 255, 0.03));
   padding: 8px 14px;
   border-radius: 999px;
   cursor: pointer;
@@ -191,13 +199,13 @@
 }
 
 .btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(160deg, rgba(122, 244, 141, 0.2), rgba(95, 217, 255, 0.08));
   transform: translateY(-1px);
 }
 
 .btn.primary {
-  border-color: rgba(245, 159, 74, 0.45);
-  background: rgba(245, 159, 74, 0.2);
+  border-color: rgba(95, 217, 255, 0.62);
+  background: linear-gradient(160deg, rgba(95, 217, 255, 0.35), rgba(95, 217, 255, 0.12));
 }
 
 .btn.danger {

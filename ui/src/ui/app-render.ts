@@ -12,6 +12,14 @@ import type { UiSettings } from "./storage";
 import type { ThemeMode } from "./theme";
 import type { ThemeTransitionContext } from "./theme-transition";
 import type {
+  CognitiveState,
+  GrantDuration,
+  MemoryLayer,
+  PermissionScope,
+  PrivacyLevel,
+  VoicePrefs,
+} from "./cognitive-store";
+import type {
   ConfigSnapshot,
   CronJob,
   CronRunLogEntry,
@@ -32,11 +40,15 @@ import type {
 } from "./ui-types";
 import { renderChat } from "./views/chat";
 import { renderConfig } from "./views/config";
+import { renderDashboard } from "./views/dashboard";
 import { renderConnections } from "./views/connections";
 import { renderCron } from "./views/cron";
 import { renderDebug } from "./views/debug";
 import { renderInstances } from "./views/instances";
 import { renderNodes } from "./views/nodes";
+import { renderMemory } from "./views/memory";
+import { renderAgents } from "./views/agents";
+import { renderTrust } from "./views/trust";
 import { renderOverview } from "./views/overview";
 import { renderSessions } from "./views/sessions";
 import { renderSkills } from "./views/skills";
@@ -87,6 +99,10 @@ export type AppViewState = {
   chatStream: string | null;
   chatRunId: string | null;
   chatThinkingLevel: string | null;
+  cognitive: CognitiveState;
+  memoryQuery: string;
+  voiceListening: boolean;
+  voiceSupported: boolean;
   nodesLoading: boolean;
   nodes: Array<Record<string, unknown>>;
   configLoading: boolean;
@@ -163,6 +179,29 @@ export type AppViewState = {
   handleWhatsAppLogout: () => Promise<void>;
   handleTelegramSave: () => Promise<void>;
   handleSendChat: () => Promise<void>;
+  handlePermission: (scope: PermissionScope, enabled: boolean, duration: GrantDuration) => void;
+  handleMemoryCreate: (input: {
+    title: string;
+    body: string;
+    layer: MemoryLayer;
+    tags: string[];
+    privacy: PrivacyLevel;
+    importance: number;
+    confidence: number;
+    emotionalWeight: number;
+    retentionUntil: number | null;
+    source: string;
+  }) => void;
+  handleRunAgents: () => void;
+  handleActionCard: (id: string, mode: "accepted" | "scheduled" | "dismissed") => void;
+  handleActionReflect: (id: string, done: boolean, usefulness: number, obstacle: string) => void;
+  memoryResults: () => ReturnType<typeof import("./cognitive-store").searchMemory>;
+  setVoice: (next: Partial<VoicePrefs>) => void;
+  startStt: () => void;
+  stopStt: () => void;
+  stopSpeech: () => void;
+  speak: (text: string) => void;
+  setWellbeing: (key: "cognitiveLoad" | "wellbeing", value: number) => void;
 };
 
 export function renderApp(state: AppViewState) {
@@ -184,8 +223,8 @@ export function renderApp(state: AppViewState) {
     <div class="shell">
       <header class="topbar">
         <div class="brand">
-          <div class="brand-title">Clawdis Control</div>
-          <div class="brand-sub">Gateway dashboard</div>
+          <div class="brand-title">Personal AI Control</div>
+          <div class="brand-sub">Gateway + cognitive dashboard</div>
         </div>
         <div class="topbar-status">
           <div class="pill">
@@ -381,6 +420,52 @@ export function renderApp(state: AppViewState) {
               onRefresh: () => loadChatHistory(state),
               onDraftChange: (next) => (state.chatMessage = next),
               onSend: () => state.handleSendChat(),
+              actionCards: state.cognitive.actions.slice(0, 4),
+              voice: state.cognitive.voice,
+              voiceSupported: state.voiceSupported,
+              voiceListening: state.voiceListening,
+              onVoiceChange: (next) => state.setVoice(next),
+              onVoiceStart: () => state.startStt(),
+              onVoiceStop: () => state.stopStt(),
+              onReadAloud: (text) => state.speak(text),
+              onAction: (id, mode) => state.handleActionCard(id, mode),
+              onReflect: (id, done, usefulness, obstacle) => state.handleActionReflect(id, done, usefulness, obstacle),
+            })
+          : nothing}
+
+
+        ${state.tab === "memory"
+          ? renderMemory({
+              cognitive: state.cognitive,
+              results: state.memoryResults(),
+              query: state.memoryQuery,
+              onQueryChange: (next) => (state.memoryQuery = next),
+              onCreate: (input) => state.handleMemoryCreate(input),
+            })
+          : nothing}
+
+        ${state.tab === "agents"
+          ? renderAgents({
+              cognitive: state.cognitive,
+              onRunAgents: () => state.handleRunAgents(),
+              onAction: (id, mode) => state.handleActionCard(id, mode),
+              onReflect: (id, done, usefulness, obstacle) =>
+                state.handleActionReflect(id, done, usefulness, obstacle),
+            })
+          : nothing}
+
+        ${state.tab === "trust"
+          ? renderTrust({
+              cognitive: state.cognitive,
+              onPermission: (scope, enabled, duration) =>
+                state.handlePermission(scope, enabled, duration),
+            })
+          : nothing}
+
+        ${state.tab === "dashboard" || state.tab === "economy"
+          ? renderDashboard({
+              cognitive: state.cognitive,
+              onWellbeing: (key, value) => state.setWellbeing(key, value),
             })
           : nothing}
 
@@ -417,6 +502,9 @@ export function renderApp(state: AppViewState) {
             })
           : nothing}
       </main>
+      <nav class="mobile-tabs" aria-label="Mobile navigation">
+        ${["chat", "memory", "agents", "trust", "dashboard"].map((tab) => renderTab(state, tab as Tab))}
+      </nav>
     </div>
   `;
 }

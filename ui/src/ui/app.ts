@@ -62,6 +62,24 @@ import {
   loadSkills,
 } from "./controllers/skills";
 import { loadDebug } from "./controllers/debug";
+import {
+  appendAudit,
+  createActionCard,
+  createMemory,
+  loadCognitiveState,
+  permissionEnabled,
+  reflectAction,
+  runAgents,
+  saveCognitiveState,
+  searchMemory,
+  updateAction,
+  updatePermission,
+  type CognitiveState,
+  type GrantDuration,
+  type MemoryLayer,
+  type PrivacyLevel,
+  type VoicePrefs,
+} from "./cognitive-store";
 
 type EventLogEntry = {
   ts: number;
@@ -110,6 +128,12 @@ export class ClawdisApp extends LitElement {
   @state() chatStream: string | null = null;
   @state() chatRunId: string | null = null;
   @state() chatThinkingLevel: string | null = null;
+
+  @state() cognitive: CognitiveState = loadCognitiveState();
+  @state() memoryQuery = "";
+  @state() voiceListening = false;
+  @state() voiceSupported = false;
+  @state() voiceInterim = "";
 
   @state() nodesLoading = false;
   @state() nodes: Array<Record<string, unknown>> = [];
@@ -239,6 +263,7 @@ export class ClawdisApp extends LitElement {
   private popStateHandler = () => this.onPopState();
   private themeMedia: MediaQueryList | null = null;
   private themeMediaHandler: ((event: MediaQueryListEvent) => void) | null = null;
+  private speechRec: { stop: () => void } | null = null;
 
   createRenderRoot() {
     return this;
@@ -254,6 +279,7 @@ export class ClawdisApp extends LitElement {
     this.applySettingsFromUrl();
     this.connect();
     this.startNodesPolling();
+    this.voiceSupported = typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
   }
 
   disconnectedCallback() {
@@ -361,7 +387,17 @@ export class ClawdisApp extends LitElement {
     if (evt.event === "chat") {
       const payload = evt.payload as ChatEventPayload | undefined;
       const state = handleChatEvent(this, payload);
-      if (state === "final") void loadChatHistory(this);
+      if (state === "final") {
+        if (this.cognitive.voice.autoRead) {
+          const last = [...this.chatMessages].reverse().find((entry) => {
+            const row = entry as Record<string, unknown>;
+            return row.role === "assistant";
+          }) as Record<string, unknown> | undefined;
+          const content = typeof last?.content === "string" ? last.content : "";
+          if (content) this.speak(content);
+        }
+        void loadChatHistory(this);
+      }
       return;
     }
 
@@ -556,7 +592,9 @@ export class ClawdisApp extends LitElement {
 
   async handleSendChat() {
     if (!this.connected || !this.hasConnectedMobileNode()) return;
+    const seed = this.chatMessage;
     await sendChat(this);
+    if (seed.trim()) this.createSuggestionFromChat(seed);
     void loadChatHistory(this);
   }
 
@@ -597,6 +635,116 @@ export class ClawdisApp extends LitElement {
     await saveIMessageConfig(this);
     await loadConfig(this);
     await loadProviders(this, true);
+  }
+
+
+  private persistCognitive(next: CognitiveState) {
+    this.cognitive = next;
+    saveCognitiveState(next);
+  }
+
+  memoryResults() {
+    return searchMemory(this.cognitive, this.memoryQuery);
+  }
+
+  handlePermission(scope: Parameters<typeof updatePermission>[1], enabled: boolean, duration: GrantDuration) {
+    let next = updatePermission(this.cognitive, scope, enabled, duration);
+    next = appendAudit(next, "action.executed", `${scope}:${enabled ? "grant" : "revoke"}`);
+    this.persistCognitive(next);
+  }
+
+  handleMemoryCreate(input: {
+    title: string;
+    body: string;
+    layer: MemoryLayer;
+    tags: string[];
+    privacy: PrivacyLevel;
+    importance: number;
+    confidence: number;
+    emotionalWeight: number;
+    retentionUntil: number | null;
+    source: string;
+  }) {
+    this.persistCognitive(createMemory(this.cognitive, input));
+  }
+
+  handleRunAgents() {
+    this.persistCognitive(runAgents(this.cognitive));
+  }
+
+  handleActionCard(cardId: string, mode: "accepted" | "scheduled" | "dismissed") {
+    this.persistCognitive(updateAction(this.cognitive, cardId, mode, mode === "scheduled" ? Date.now() + 60 * 60 * 1000 : null));
+  }
+
+  handleActionReflect(cardId: string, done: boolean, usefulness: number, obstacle: string) {
+    this.persistCognitive(reflectAction(this.cognitive, cardId, { ts: Date.now(), done, usefulness, obstacle }));
+  }
+
+  createSuggestionFromChat(seed: string) {
+    this.persistCognitive(createActionCard(this.cognitive, seed));
+  }
+
+  setVoice(next: Partial<VoicePrefs>) {
+    this.persistCognitive({ ...this.cognitive, voice: { ...this.cognitive.voice, ...next } });
+  }
+
+  speak(text: string) {
+    if (!permissionEnabled(this.cognitive, "tts") || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.rate = this.cognitive.voice.rate;
+    utt.pitch = this.cognitive.voice.pitch;
+    const match = window.speechSynthesis.getVoices().find((v) => v.voiceURI === this.cognitive.voice.voiceURI);
+    if (match) utt.voice = match;
+    window.speechSynthesis.speak(utt);
+    this.persistCognitive(appendAudit(this.cognitive, "tts.used", "assistant-response"));
+  }
+
+  stopSpeech() {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+  }
+
+  startStt() {
+    if (!permissionEnabled(this.cognitive, "mic") || !this.voiceSupported) return;
+    const Ctor = (window as Window & { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition
+      ?? (window as Window & { webkitSpeechRecognition?: any }).webkitSpeechRecognition;
+    if (!Ctor) return;
+    const rec = new Ctor();
+    this.speechRec = rec as { stop: () => void };
+    rec.lang = "en-US";
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    this.voiceListening = true;
+    rec.onresult = (event: any) => {
+      const parts: string[] = [];
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        parts.push(event.results[i][0].transcript);
+      }
+      const transcript = parts.join(" ").trim();
+      this.voiceInterim = transcript;
+      this.chatMessage = transcript;
+    };
+    rec.onerror = () => {
+      this.voiceListening = false;
+    };
+    rec.onend = () => {
+      this.voiceListening = false;
+      this.speechRec = null;
+      if (this.voiceInterim.trim()) {
+        this.persistCognitive(appendAudit(this.cognitive, "stt.used", "chat-compose"));
+      }
+    };
+    rec.start();
+  }
+
+  stopStt() {
+    this.speechRec?.stop();
+    this.speechRec = null;
+    this.voiceListening = false;
+  }
+
+  setWellbeing(key: "cognitiveLoad" | "wellbeing", value: number) {
+    this.persistCognitive({ ...this.cognitive, wellbeing: { ...this.cognitive.wellbeing, [key]: value } });
   }
 
   render() {

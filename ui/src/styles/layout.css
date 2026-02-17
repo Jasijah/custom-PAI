@@ -19,7 +19,10 @@
   padding: 16px 20px;
   border: 1px solid var(--border);
   border-radius: 18px;
-  background: linear-gradient(135deg, var(--chrome), rgba(255, 255, 255, 0.02));
+  background:
+    linear-gradient(135deg, rgba(95, 217, 255, 0.14), rgba(95, 217, 255, 0.02)),
+    linear-gradient(215deg, rgba(122, 244, 141, 0.08), rgba(122, 244, 141, 0.01)),
+    var(--chrome);
   backdrop-filter: blur(18px);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
 }
@@ -55,7 +58,9 @@
   border: 1px solid var(--border);
   border-radius: 20px;
   background: var(--panel);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(186, 240, 255, 0.2);
   backdrop-filter: blur(18px);
 }
 
@@ -116,14 +121,14 @@
 
 .nav-item.active {
   color: var(--text);
-  border-color: rgba(245, 159, 74, 0.45);
-  background: rgba(245, 159, 74, 0.16);
+  border-color: rgba(95, 217, 255, 0.55);
+  background: rgba(95, 217, 255, 0.2);
   transform: translateX(2px);
 }
 
 .nav-item.active::before {
   background: var(--accent);
-  box-shadow: 0 0 12px rgba(245, 159, 74, 0.4);
+  box-shadow: 0 0 12px rgba(95, 217, 255, 0.6);
 }
 
 .content {
@@ -251,5 +256,51 @@
 
   .list-item {
     grid-template-columns: 1fr;
+  }
+}
+
+.mobile-tabs {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .shell {
+    padding-bottom: 88px;
+  }
+
+  .topbar {
+    border-radius: 20px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.06));
+  }
+
+  .nav {
+    display: none;
+  }
+
+  .mobile-tabs {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    z-index: 50;
+    border: 1px solid var(--border-strong);
+    border-radius: 18px;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03));
+    backdrop-filter: blur(14px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  }
+
+  .mobile-tabs .nav-item {
+    padding: 8px;
+    justify-content: center;
+    font-size: 11px;
+  }
+
+  .mobile-tabs .nav-item::before {
+    display: none;
   }
 }

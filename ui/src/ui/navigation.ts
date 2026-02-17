@@ -1,5 +1,5 @@
 export const TAB_GROUPS = [
-  { label: "Chat", tabs: ["chat"] },
+  { label: "PAI", tabs: ["chat", "memory", "agents", "trust", "dashboard", "economy"] },
   {
     label: "Control",
     tabs: ["overview", "connections", "instances", "sessions", "cron"],
@@ -17,6 +17,11 @@ export type Tab =
   | "skills"
   | "nodes"
   | "chat"
+  | "memory"
+  | "agents"
+  | "trust"
+  | "dashboard"
+  | "economy"
   | "config"
   | "debug";
 
@@ -29,6 +34,11 @@ const TAB_PATHS: Record<Tab, string> = {
   skills: "/skills",
   nodes: "/nodes",
   chat: "/chat",
+  memory: "/memory",
+  agents: "/agents",
+  trust: "/trust",
+  dashboard: "/dashboard",
+  economy: "/economy",
   config: "/config",
   debug: "/debug",
 };
@@ -96,6 +106,16 @@ export function titleForTab(tab: Tab) {
       return "Nodes";
     case "chat":
       return "Chat";
+    case "memory":
+      return "Memory";
+    case "agents":
+      return "Agents";
+    case "trust":
+      return "Trust";
+    case "dashboard":
+      return "Dashboard";
+    case "economy":
+      return "Economy";
     case "config":
       return "Config";
     case "debug":
@@ -123,6 +143,16 @@ export function subtitleForTab(tab: Tab) {
       return "Paired devices, capabilities, and command exposure.";
     case "chat":
       return "Direct gateway chat session for quick interventions.";
+    case "memory":
+      return "Memory Vault with layered context and retrieval traces.";
+    case "agents":
+      return "Agent stack suggestions, action cards and reflection loop.";
+    case "trust":
+      return "Permissions, grants and append-only audit log.";
+    case "dashboard":
+      return "Priorities, wellbeing and activity overview.";
+    case "economy":
+      return "Personal economy credits and allocation ledger.";
     case "config":
       return "Edit ~/.clawdis/clawdis.json safely.";
     case "debug":

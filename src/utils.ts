@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { BRAND_DEFAULT_STATE_DIR } from "./branding.js";
 import { logVerbose, shouldLogVerbose } from "./globals.js";
 
 export async function ensureDir(dir: string) {
@@ -133,5 +134,5 @@ export function shortenHomeInString(input: string): string {
   return input.split(home).join("~");
 }
 
-// Fixed configuration root; legacy ~/.clawdis is no longer used.
-export const CONFIG_DIR = path.join(os.homedir(), ".clawdis");
+// Fixed configuration root; can be branded via environment defaults.
+export const CONFIG_DIR = path.join(os.homedir(), BRAND_DEFAULT_STATE_DIR);

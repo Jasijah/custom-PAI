@@ -206,6 +206,34 @@ Browser control (optional):
 }
 ```
 
+
+## Web UI (PAI Control), PWA, and iPhone wrapper prep
+
+```bash
+# run web ui locally
+pnpm -C ui dev
+
+# build static ui bundle
+pnpm -C ui build
+```
+
+### Enable PWA behavior
+
+- `ui/public/manifest.webmanifest` defines app metadata/icons.
+- `ui/public/sw.js` enables minimal shell caching for offline route boot.
+- `ui/src/main.ts` registers the service worker automatically in supported browsers.
+
+### Prepare iPhone wrapper (Capacitor-ready)
+
+A starter Capacitor config is included at `ui/capacitor.config.ts` so the built web app can be wrapped later.
+
+Suggested next commands (when you are ready to package):
+
+```bash
+pnpm -C ui build
+# then initialize/install capacitor tooling in ui/ and sync iOS project
+```
+
 ## Docs
 
 - [`docs/index.md`](docs/index.md) (overview)
