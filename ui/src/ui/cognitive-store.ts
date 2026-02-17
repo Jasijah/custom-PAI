@@ -84,7 +84,10 @@ export type AgentSuggestion = {
 
 export type VoicePrefs = {
   autoRead: boolean;
+  announceOnline: boolean;
+  provider: "nvidia" | "browser";
   voiceURI: string;
+  nvidiaVoice: string;
   rate: number;
   pitch: number;
 };
@@ -155,7 +158,15 @@ export function loadCognitiveState(): CognitiveState {
     memory: [],
     actions: [],
     agentSuggestions: [],
-    voice: { autoRead: false, voiceURI: "", rate: 1, pitch: 1 },
+    voice: {
+      autoRead: false,
+      announceOnline: true,
+      provider: "nvidia",
+      voiceURI: "",
+      nvidiaVoice: "alloy",
+      rate: 1,
+      pitch: 1,
+    },
     economy: {
       dailyBudget: 100,
       allocations: {

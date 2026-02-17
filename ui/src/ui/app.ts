@@ -80,6 +80,7 @@ import {
   type PrivacyLevel,
   type VoicePrefs,
 } from "./cognitive-store";
+import { synthesizeSpeech } from "./tts";
 
 type EventLogEntry = {
   ts: number;
@@ -318,6 +319,9 @@ export class ClawdisApp extends LitElement {
         this.connected = true;
         this.hello = hello;
         this.applySnapshot(hello);
+        if (this.cognitive.voice.announceOnline) {
+          void this.speak("Personal AI is online and ready.");
+        }
         void loadNodes(this, { quiet: true });
         void this.refreshActiveTab();
       },
@@ -394,7 +398,7 @@ export class ClawdisApp extends LitElement {
             return row.role === "assistant";
           }) as Record<string, unknown> | undefined;
           const content = typeof last?.content === "string" ? last.content : "";
-          if (content) this.speak(content);
+          if (content) void this.speak(content);
         }
         void loadChatHistory(this);
       }
@@ -688,15 +692,20 @@ export class ClawdisApp extends LitElement {
     this.persistCognitive({ ...this.cognitive, voice: { ...this.cognitive.voice, ...next } });
   }
 
-  speak(text: string) {
-    if (!permissionEnabled(this.cognitive, "tts") || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.rate = this.cognitive.voice.rate;
-    utt.pitch = this.cognitive.voice.pitch;
-    const match = window.speechSynthesis.getVoices().find((v) => v.voiceURI === this.cognitive.voice.voiceURI);
-    if (match) utt.voice = match;
-    window.speechSynthesis.speak(utt);
-    this.persistCognitive(appendAudit(this.cognitive, "tts.used", "assistant-response"));
+  async speak(text: string) {
+    if (!permissionEnabled(this.cognitive, "tts")) return;
+    const provider = await synthesizeSpeech({
+      text,
+      provider: this.cognitive.voice.provider,
+      browserVoiceUri: this.cognitive.voice.voiceURI,
+      rate: this.cognitive.voice.rate,
+      pitch: this.cognitive.voice.pitch,
+      nvidiaVoice: this.cognitive.voice.nvidiaVoice,
+    });
+    if (!provider) return;
+    this.persistCognitive(
+      appendAudit(this.cognitive, "tts.used", `${provider}:assistant-response`),
+    );
   }
 
   stopSpeech() {

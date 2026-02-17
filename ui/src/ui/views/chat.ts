@@ -123,6 +123,9 @@ export function renderChat(props: ChatProps) {
         <div class="row chat-compose__actions">
           <button class="btn" ?disabled=${!props.voiceSupported} @click=${props.voiceListening ? props.onVoiceStop : props.onVoiceStart}>${props.voiceListening ? "Stop Mic" : "Mic"}</button>
           <label class="row muted" style="gap:6px;"><input type="checkbox" .checked=${props.voice.autoRead} @change=${(e: Event) => props.onVoiceChange({ autoRead: (e.target as HTMLInputElement).checked })}/>Auto-read</label>
+          <label class="row muted" style="gap:6px;"><input type="checkbox" .checked=${props.voice.announceOnline} @change=${(e: Event) => props.onVoiceChange({ announceOnline: (e.target as HTMLInputElement).checked })}/>Announce online</label>
+          <label class="field" style="min-width:160px;"><span>TTS Provider</span><select .value=${props.voice.provider} @change=${(e: Event) => props.onVoiceChange({ provider: (e.target as HTMLSelectElement).value as VoicePrefs["provider"] })}><option value="nvidia">NVIDIA Voice LLM</option><option value="browser">Browser</option></select></label>
+          <label class="field" style="min-width:160px;"><span>NVIDIA voice</span><input .value=${props.voice.nvidiaVoice} @input=${(e: Event) => props.onVoiceChange({ nvidiaVoice: (e.target as HTMLInputElement).value.trim() || "alloy" })} placeholder="alloy" /></label>
           <label class="field" style="min-width:160px;"><span>Rate</span><input type="range" min="0.6" max="1.6" step="0.1" .value=${String(props.voice.rate)} @input=${(e: Event) => props.onVoiceChange({ rate: Number((e.target as HTMLInputElement).value) })}/></label>
           <label class="field" style="min-width:160px;"><span>Pitch</span><input type="range" min="0.6" max="1.6" step="0.1" .value=${String(props.voice.pitch)} @input=${(e: Event) => props.onVoiceChange({ pitch: Number((e.target as HTMLInputElement).value) })}/></label>
           <button
