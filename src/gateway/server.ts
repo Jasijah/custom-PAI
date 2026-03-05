@@ -155,6 +155,7 @@ import {
   getResolvedLoggerSettings,
   runtimeForLogger,
 } from "../logging.js";
+import { isMiyaEnabled } from "../miya/config.js";
 import { setCommandLaneConcurrency } from "../process/command-queue.js";
 import { runExec } from "../process/exec.js";
 import { monitorWebProvider, webAuthExists } from "../providers/web/index.js";
@@ -3978,6 +3979,37 @@ export async function startGatewayServer(
     }
     agentRunSeq.set(evt.runId, evt.seq);
     broadcast("agent", evt);
+
+    if (isMiyaEnabled() && evt.stream === "miya") {
+      const data = evt.data as Record<string, unknown>;
+      if (Array.isArray(data.memory) && data.memory.length > 0) {
+        broadcast("miya.memory.updated", {
+          runId: evt.runId,
+          items: data.memory,
+        });
+      }
+      if (Array.isArray(data.actionCards) && data.actionCards.length > 0) {
+        broadcast("miya.actions.updated", {
+          runId: evt.runId,
+          items: data.actionCards,
+        });
+      }
+      if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+        broadcast("miya.profile.updated", {
+          runId: evt.runId,
+          suggestions: data.suggestions,
+        });
+      }
+      if (typeof data.error === "string") {
+        broadcast("miya.audit.appended", {
+          runId: evt.runId,
+          detail: data.error,
+        });
+      }
+      broadcast("miya.permissions.updated", {
+        runId: evt.runId,
+      });
+    }
 
     const chatLink = peekChatRun(evt.runId);
     const sessionKey =
