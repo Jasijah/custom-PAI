@@ -122,8 +122,13 @@ export function shortenHomePath(input: string): string {
   if (!input) return input;
   const home = resolveHomeDir();
   if (!home) return input;
-  if (input === home) return "~";
-  if (input.startsWith(`${home}/`)) return `~${input.slice(home.length)}`;
+  const normalizedInput = path.resolve(input);
+  const normalizedHome = path.resolve(home);
+  if (normalizedInput === normalizedHome) return "~";
+  const rel = path.relative(normalizedHome, normalizedInput);
+  if (rel && rel !== "." && !rel.startsWith("..") && !path.isAbsolute(rel)) {
+    return `~${path.sep}${rel}`;
+  }
   return input;
 }
 

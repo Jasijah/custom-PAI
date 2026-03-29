@@ -5,7 +5,13 @@ import { fileURLToPath } from "node:url";
 
 import { resolveUserPath } from "../utils.js";
 
-export const DEFAULT_AGENT_WORKSPACE_DIR = path.join(os.homedir(), "clawd");
+const DEFAULT_WORKSPACE_ENV =
+  process.env.CLAWDIS_WORKSPACE?.trim() ||
+  process.env.CLAWDIS_AGENT_WORKSPACE?.trim();
+
+export const DEFAULT_AGENT_WORKSPACE_DIR = resolveUserPath(
+  DEFAULT_WORKSPACE_ENV || path.join(os.homedir(), "clawd"),
+);
 export const DEFAULT_AGENTS_FILENAME = "AGENTS.md";
 export const DEFAULT_SOUL_FILENAME = "SOUL.md";
 export const DEFAULT_TOOLS_FILENAME = "TOOLS.md";
