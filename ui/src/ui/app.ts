@@ -131,6 +131,10 @@ export class ClawdisApp extends LitElement {
   @state() chatStream: string | null = null;
   @state() chatRunId: string | null = null;
   @state() chatThinkingLevel: string | null = null;
+  @state() buildPrompt = "Create a warm daily planner app with a focus timer, mood check-in, and a progress overview.";
+  @state() buildTitle = "Daily Planner";
+  @state() buildPalette: "sunrise" | "ocean" | "forest" | "graphite" = "sunrise";
+  @state() buildLayout: "dashboard" | "mobile" | "studio" = "dashboard";
 
   @state() cognitive: CognitiveState = loadCognitiveState();
   @state() memoryQuery = "";
@@ -503,6 +507,7 @@ export class ClawdisApp extends LitElement {
       await Promise.all([loadChatHistory(this), loadSessions(this)]);
       this.scheduleChatScroll();
     }
+    if (this.tab === "build") return;
     if (this.tab === "config") await loadConfig(this);
     if (this.tab === "debug") await loadDebug(this);
   }

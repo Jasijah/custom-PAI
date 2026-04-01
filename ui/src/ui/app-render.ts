@@ -39,6 +39,7 @@ import type {
   TelegramForm,
 } from "./ui-types";
 import { renderChat } from "./views/chat";
+import { renderBuild } from "./views/build";
 import { renderConfig } from "./views/config";
 import { renderDashboard } from "./views/dashboard";
 import { renderConnections } from "./views/connections";
@@ -101,6 +102,10 @@ export type AppViewState = {
   chatStream: string | null;
   chatRunId: string | null;
   chatThinkingLevel: string | null;
+  buildPrompt: string;
+  buildTitle: string;
+  buildPalette: "sunrise" | "ocean" | "forest" | "graphite";
+  buildLayout: "dashboard" | "mobile" | "studio";
   cognitive: CognitiveState;
   memoryQuery: string;
   voiceListening: boolean;
@@ -456,6 +461,19 @@ export function renderApp(state: AppViewState) {
             })
           : nothing}
 
+        ${state.tab === "build"
+          ? renderBuild({
+              title: state.buildTitle,
+              prompt: state.buildPrompt,
+              palette: state.buildPalette,
+              layout: state.buildLayout,
+              onTitleChange: (next) => (state.buildTitle = next),
+              onPromptChange: (next) => (state.buildPrompt = next),
+              onPaletteChange: (next) => (state.buildPalette = next),
+              onLayoutChange: (next) => (state.buildLayout = next),
+            })
+          : nothing}
+
 
         ${state.tab === "memory"
           ? renderMemory({
@@ -577,6 +595,8 @@ function pageKickerForTab(tab: Tab) {
       return "Today";
     case "chat":
       return "Workspace";
+    case "build":
+      return "Studio";
     case "connections":
       return "Setup";
     case "sessions":

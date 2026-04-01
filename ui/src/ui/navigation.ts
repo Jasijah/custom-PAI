@@ -1,5 +1,5 @@
 export const TAB_GROUPS = [
-  { label: "Daily", tabs: ["chat", "dashboard", "memory", "agents"] },
+  { label: "Daily", tabs: ["chat", "build", "dashboard", "memory", "agents"] },
   {
     label: "Home",
     tabs: ["overview", "connections", "sessions", "instances", "cron"],
@@ -16,6 +16,7 @@ export type Tab =
   | "skills"
   | "nodes"
   | "chat"
+  | "build"
   | "memory"
   | "agents"
   | "trust"
@@ -33,6 +34,7 @@ const TAB_PATHS: Record<Tab, string> = {
   skills: "/skills",
   nodes: "/nodes",
   chat: "/chat",
+  build: "/build",
   memory: "/memory",
   agents: "/agents",
   trust: "/trust",
@@ -105,6 +107,8 @@ export function titleForTab(tab: Tab) {
       return "Connected Nodes";
     case "chat":
       return "Talk";
+    case "build":
+      return "Build";
     case "memory":
       return "Memory";
     case "agents":
@@ -142,6 +146,8 @@ export function subtitleForTab(tab: Tab) {
       return "Inspect paired nodes, capabilities, and command access.";
     case "chat":
       return "Your main everyday workspace for talking, listening, and following along.";
+    case "build":
+      return "Create app ideas, shape them, and preview them live without leaving the assistant.";
     case "memory":
       return "Search saved context and capture important things worth remembering.";
     case "agents":
