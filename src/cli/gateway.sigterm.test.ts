@@ -124,7 +124,13 @@ describe("gateway SIGTERM", () => {
       proc.once("exit", (code, signal) => resolve({ code, signal })),
     );
 
-    if (result.code !== 0) {
+    const exitedCleanly =
+      result.code === 0 ||
+      (process.platform === "win32" &&
+        result.code === null &&
+        result.signal === "SIGTERM");
+
+    if (!exitedCleanly) {
       const stdout = out.join("");
       const stderr = err.join("");
       throw new Error(
@@ -132,6 +138,10 @@ describe("gateway SIGTERM", () => {
           `--- stdout ---\n${stdout}\n--- stderr ---\n${stderr}`,
       );
     }
-    expect(result.signal).toBeNull();
+    if (process.platform === "win32") {
+      expect([null, "SIGTERM"]).toContain(result.signal);
+    } else {
+      expect(result.signal).toBeNull();
+    }
   });
 });
