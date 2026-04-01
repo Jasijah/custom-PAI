@@ -16,7 +16,11 @@ export type BuildDraftRecord = {
   prompt: string;
   palette: "sunrise" | "ocean" | "forest" | "graphite";
   layout: "dashboard" | "mobile" | "studio";
-  html: string;
+  screens: {
+    home: string;
+    details: string;
+    settings: string;
+  };
   css: string;
   js: string;
   updatedAt: number;
@@ -69,8 +73,16 @@ export function loadBuildDrafts(): BuildDraftRecord[] {
   try {
     const raw = localStorage.getItem(BUILD_DRAFTS_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as BuildDraftRecord[];
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed = JSON.parse(raw) as Array<BuildDraftRecord & { html?: string }>;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((draft) => ({
+      ...draft,
+      screens: draft.screens ?? {
+        home: draft.html ?? "",
+        details: draft.html ?? "",
+        settings: draft.html ?? "",
+      },
+    }));
   } catch {
     return [];
   }

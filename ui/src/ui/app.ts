@@ -13,8 +13,10 @@ import {
 import { renderApp } from "./app-render";
 import { normalizePath, pathForTab, tabFromPath, type Tab } from "./navigation";
 import {
+  buildStructuredExportFiles,
   createStarterBuild,
   parseGeneratedBuildResponse,
+  type BuildScreenId,
   type BuildCode,
 } from "./views/build";
 import {
@@ -156,6 +158,7 @@ export class ClawdisApp extends LitElement {
   });
   @state() buildDrafts: BuildDraftRecord[] = loadBuildDrafts();
   @state() buildSelectedDraftId: string | null = null;
+  @state() buildActiveScreen: BuildScreenId = "home";
   @state() buildGenerating = false;
   @state() buildStatus: string | null = null;
 
@@ -731,8 +734,9 @@ export class ClawdisApp extends LitElement {
       `Palette: ${this.buildPalette}`,
       `Layout: ${this.buildLayout}`,
       `Prompt: ${this.buildPrompt}`,
-      'Return strict JSON only with keys "title", "html", "css", and "js".',
-      "The html should be only body markup. The css should be complete. The js should be browser-safe and optional.",
+      'Return strict JSON only with keys "title", "screens", "css", and "js".',
+      'The "screens" object must include "home", "details", and "settings", each containing only body markup for that screen.',
+      "The css should be complete and shared across screens. The js should be browser-safe and optional.",
       "Do not wrap the JSON in markdown.",
     ].join("\n");
 
@@ -766,14 +770,19 @@ export class ClawdisApp extends LitElement {
       }
 
       const parsed = parseGeneratedBuildResponse(assistantText);
-      if (!parsed?.html || !parsed?.css) {
+      const nextScreens = parsed?.screens ?? null;
+      if ((!nextScreens?.home && !parsed?.html) || !parsed?.css) {
         this.buildStatus = "Gemini responded, but the code could not be parsed cleanly. You can still edit the current draft.";
         return;
       }
 
       this.buildTitle = parsed.title?.trim() || this.buildTitle;
       this.buildCode = {
-        html: parsed.html,
+        screens: {
+          home: nextScreens?.home ?? parsed.html ?? this.buildCode.screens.home,
+          details: nextScreens?.details ?? nextScreens?.home ?? parsed.html ?? this.buildCode.screens.details,
+          settings: nextScreens?.settings ?? nextScreens?.home ?? parsed.html ?? this.buildCode.screens.settings,
+        },
         css: parsed.css,
         js: parsed.js ?? "",
       };
@@ -793,7 +802,7 @@ export class ClawdisApp extends LitElement {
       prompt: this.buildPrompt,
       palette: this.buildPalette,
       layout: this.buildLayout,
-      html: this.buildCode.html,
+      screens: this.buildCode.screens,
       css: this.buildCode.css,
       js: this.buildCode.js,
       updatedAt: Date.now(),
@@ -814,7 +823,7 @@ export class ClawdisApp extends LitElement {
     this.buildPalette = draft.palette;
     this.buildLayout = draft.layout;
     this.buildCode = {
-      html: draft.html,
+      screens: draft.screens,
       css: draft.css,
       js: draft.js,
     };
@@ -846,24 +855,17 @@ export class ClawdisApp extends LitElement {
   handleBuildExport() {
     if (typeof window === "undefined" || typeof document === "undefined") return;
     const slug = (this.buildTitle || "app").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "app";
-    const bundle = [
-      `<!-- ${this.buildTitle} -->`,
-      "<style>",
-      this.buildCode.css,
-      "</style>",
-      this.buildCode.html,
-      "<script>",
-      this.buildCode.js,
-      "</script>",
-    ].join("\n");
-    const blob = new Blob([bundle], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${slug}.html`;
-    link.click();
-    URL.revokeObjectURL(url);
-    this.buildStatus = "Exported as a standalone HTML file.";
+    const files = buildStructuredExportFiles(this.buildCode);
+    for (const [name, contents] of Object.entries(files)) {
+      const blob = new Blob([contents], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${slug}-${name}`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+    this.buildStatus = "Exported structured files for all three screens.";
   }
 
 

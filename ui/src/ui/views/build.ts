@@ -4,9 +4,12 @@ import type { BuildDraftRecord } from "../storage";
 
 export type BuildPalette = "sunrise" | "ocean" | "forest" | "graphite";
 export type BuildLayout = "dashboard" | "mobile" | "studio";
+export type BuildScreenId = "home" | "details" | "settings";
+
+export type BuildScreens = Record<BuildScreenId, string>;
 
 export type BuildCode = {
-  html: string;
+  screens: BuildScreens;
   css: string;
   js: string;
 };
@@ -17,6 +20,7 @@ export type BuildProps = {
   palette: BuildPalette;
   layout: BuildLayout;
   code: BuildCode;
+  activeScreen: BuildScreenId;
   drafts: BuildDraftRecord[];
   selectedDraftId: string | null;
   generating: boolean;
@@ -25,7 +29,8 @@ export type BuildProps = {
   onPromptChange: (next: string) => void;
   onPaletteChange: (next: BuildPalette) => void;
   onLayoutChange: (next: BuildLayout) => void;
-  onCodeChange: (kind: keyof BuildCode, next: string) => void;
+  onScreenChange: (next: BuildScreenId) => void;
+  onCodeChange: (kind: "screen" | "css" | "js", next: string, screen?: BuildScreenId) => void;
   onGenerate: () => void;
   onSaveDraft: () => void;
   onExport: () => void;
@@ -41,22 +46,25 @@ const QUICK_IDEAS = [
   "A kid-friendly homework dashboard",
 ];
 
+const SCREEN_ORDER: BuildScreenId[] = ["home", "details", "settings"];
+
 export function renderBuild(props: BuildProps) {
-  const preview = buildPreviewDocument(props.code);
+  const preview = buildPreviewDocument(props.code, props.activeScreen);
+  const currentScreenMarkup = props.code.screens[props.activeScreen];
 
   return html`
     <section class="builder-shell">
       <div class="builder-hero">
         <div>
           <div class="builder-hero__eyebrow">Studio</div>
-          <h2>Shape app ideas, generate them with Gemini, and preview them live.</h2>
-          <p>Use a short brief, tune the direction, then refine the code directly without leaving Clawdis.</p>
+          <h2>Shape app ideas, generate multi-screen concepts, and preview them live.</h2>
+          <p>Use a short brief, tune the direction, then refine each screen directly without leaving Clawdis.</p>
         </div>
         <div class="builder-hero__meta">
           <div class="hero-stat">
             <div class="hero-stat__label">Mode</div>
-            <div class="hero-stat__value">${props.generating ? "Generating" : "Live preview"}</div>
-            <div class="hero-stat__sub">${props.status ?? "Saved drafts, editable code, and one-click export."}</div>
+            <div class="hero-stat__value">${props.generating ? "Generating" : "Multi-screen studio"}</div>
+            <div class="hero-stat__sub">${props.status ?? "Three screens, saved drafts, structured export, and live preview."}</div>
           </div>
         </div>
       </div>
@@ -79,7 +87,7 @@ export function renderBuild(props: BuildProps) {
                         <span class="builder-draft-card__title">${draft.name}</span>
                         <span class="builder-draft-card__sub">${new Date(draft.updatedAt).toLocaleString()}</span>
                       </button>
-                      <button class="builder-draft-card__delete" @click=${() => props.onDeleteDraft(draft.id)} aria-label="Delete draft">×</button>
+                      <button class="builder-draft-card__delete" @click=${() => props.onDeleteDraft(draft.id)} aria-label="Delete draft">x</button>
                     </div>
                   `,
                 )
@@ -89,7 +97,7 @@ export function renderBuild(props: BuildProps) {
 
         <section class="builder-panel">
           <div class="section-title">Prompt</div>
-          <div class="section-sub">Describe what you want to build. Gemini will return a real starter interface with HTML, CSS, and JS.</div>
+          <div class="section-sub">Describe what you want to build. Gemini will return a three-screen starter with shared styles and behavior.</div>
 
           <label class="field" style="margin-top: 16px;">
             <span>App name</span>
@@ -149,7 +157,7 @@ export function renderBuild(props: BuildProps) {
               ${props.generating ? "Generating..." : "Generate with Gemini"}
             </button>
             <button class="btn" @click=${props.onSaveDraft}>Save draft</button>
-            <button class="btn" @click=${props.onExport}>Export</button>
+            <button class="btn" @click=${props.onExport}>Structured export</button>
           </div>
         </section>
 
@@ -157,11 +165,20 @@ export function renderBuild(props: BuildProps) {
           <div class="builder-preview__header">
             <div>
               <div class="section-title">Preview</div>
-              <div class="section-sub">Live render of your current code.</div>
+              <div class="section-sub">Switch between screens and see the live render.</div>
             </div>
             <div class="builder-preview__dots">
               <span></span><span></span><span></span>
             </div>
+          </div>
+          <div class="builder-screen-tabs">
+            ${SCREEN_ORDER.map(
+              (screen) => html`
+                <button class="builder-screen-tab ${props.activeScreen === screen ? "active" : ""}" @click=${() => props.onScreenChange(screen)}>
+                  ${screenLabel(screen)}
+                </button>
+              `,
+            )}
           </div>
           <iframe
             class="builder-preview__frame"
@@ -173,15 +190,15 @@ export function renderBuild(props: BuildProps) {
 
       <section class="builder-code">
         <label class="builder-code__block field">
-          <span>HTML</span>
-          <textarea .value=${props.code.html} @input=${(e: Event) => props.onCodeChange("html", (e.target as HTMLTextAreaElement).value)} rows="18"></textarea>
+          <span>${screenLabel(props.activeScreen)} HTML</span>
+          <textarea .value=${currentScreenMarkup} @input=${(e: Event) => props.onCodeChange("screen", (e.target as HTMLTextAreaElement).value, props.activeScreen)} rows="18"></textarea>
         </label>
         <label class="builder-code__block field">
-          <span>CSS</span>
+          <span>Shared CSS</span>
           <textarea .value=${props.code.css} @input=${(e: Event) => props.onCodeChange("css", (e.target as HTMLTextAreaElement).value)} rows="18"></textarea>
         </label>
         <label class="builder-code__block field">
-          <span>JS</span>
+          <span>Shared JS</span>
           <textarea .value=${props.code.js} @input=${(e: Event) => props.onCodeChange("js", (e.target as HTMLTextAreaElement).value)} rows="18"></textarea>
         </label>
       </section>
@@ -200,9 +217,9 @@ export function createStarterBuild(props: {
   const title = props.title.trim() || "New App";
   const summary = summarizePrompt(props.prompt);
   const palette = paletteFor(props.palette);
-  const cards = cardCopy(summary);
 
-  const html = `<main class="app-shell layout-${props.layout}">
+  const screens: BuildScreens = {
+    home: `<main class="app-shell layout-${props.layout}">
   <header class="hero">
     <span class="eyebrow">${labelForLayout(props.layout)}</span>
     <h1>${escapeHtml(title)}</h1>
@@ -210,23 +227,40 @@ export function createStarterBuild(props: {
   </header>
   <section class="feature-grid">
     <article class="feature-card">
-      <span class="feature-label">Focus</span>
-      <h2>${escapeHtml(cards.primaryTitle)}</h2>
-      <p>${escapeHtml(cards.primaryBody)}</p>
+      <span class="feature-label">Today</span>
+      <h2>Start with the most important thing</h2>
+      <p>Lead with the most useful action, then support it with just enough context to keep moving.</p>
     </article>
     <article class="feature-card">
-      <span class="feature-label">Flow</span>
-      <h2>${escapeHtml(cards.secondaryTitle)}</h2>
-      <p>${escapeHtml(cards.secondaryBody)}</p>
-    </article>
-    <article class="feature-card wide">
-      <span class="feature-label">Preview</span>
-      <h2>Built for real use</h2>
-      <p>This concept keeps the layout simple, warm, and easy to scan while leaving room for richer interactions later.</p>
-      <button class="primary-action">Continue</button>
+      <span class="feature-label">Focus</span>
+      <h2>See momentum clearly</h2>
+      <p>Use stronger type, warmer spacing, and a focused call to action so the concept feels ready to use.</p>
     </article>
   </section>
-</main>`;
+</main>`,
+    details: `<main class="app-shell layout-${props.layout}">
+  <header class="hero compact">
+    <span class="eyebrow">Details</span>
+    <h1>${escapeHtml(title)} details</h1>
+    <p>A deeper screen for progress, metrics, and supporting context.</p>
+  </header>
+  <section class="detail-list">
+    <article class="feature-card"><h2>Progress</h2><p>Show important progress without turning the screen into a dense admin table.</p></article>
+    <article class="feature-card"><h2>History</h2><p>Give people enough context to understand what changed and what comes next.</p></article>
+  </section>
+</main>`,
+    settings: `<main class="app-shell layout-${props.layout}">
+  <header class="hero compact">
+    <span class="eyebrow">Settings</span>
+    <h1>${escapeHtml(title)} preferences</h1>
+    <p>A simple preferences screen with a friendlier structure than a raw settings dump.</p>
+  </header>
+  <section class="settings-stack">
+    <article class="feature-card"><h2>Notifications</h2><p>Control what matters and keep the rest quiet.</p></article>
+    <article class="feature-card"><h2>Appearance</h2><p>Choose a calmer palette and layout that fits everyday use.</p></article>
+  </section>
+</main>`,
+  };
 
   const css = `:root {
   --bg: ${palette.bg};
@@ -234,7 +268,6 @@ export function createStarterBuild(props: {
   --ink: ${palette.ink};
   --muted: ${palette.muted};
   --accent: ${palette.accent};
-  --accent-soft: ${palette.soft};
   font-family: "Work Sans", system-ui, sans-serif;
 }
 
@@ -248,80 +281,34 @@ body {
   color: var(--ink);
 }
 
-.app-shell {
-  min-height: 100vh;
-  padding: 28px;
+.app-shell { min-height: 100vh; padding: 28px; }
+.hero h1 { margin: 10px 0 8px; font-size: clamp(2.2rem, 5vw, 3.8rem); line-height: 0.98; }
+.hero.compact h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); }
+.hero p { max-width: 56ch; color: var(--muted); }
+.eyebrow, .feature-label { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; color: var(--accent); }
+.feature-grid, .detail-list, .settings-stack { display: grid; gap: 18px; margin-top: 28px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.layout-mobile .feature-grid, .layout-mobile .detail-list, .layout-mobile .settings-stack { grid-template-columns: 1fr; max-width: 420px; }
+.layout-studio .feature-grid { grid-template-columns: 1.2fr 0.8fr; }
+.feature-card { padding: 22px; border-radius: 28px; background: var(--panel); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 20px 50px rgba(0,0,0,0.12); }
+.top-nav { display: flex; gap: 10px; padding: 24px 28px 0; }
+.top-nav a { color: var(--ink); text-decoration: none; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.08); }
+@media (max-width: 700px) { .feature-grid, .detail-list, .settings-stack { grid-template-columns: 1fr; } }`;
+
+  const js = `const screenLinks = document.querySelectorAll("[data-screen-link]");
+screenLinks.forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    const href = link.getAttribute("href");
+    if (!href) return;
+    window.location.hash = href.replace(".html", "");
+  });
+});`;
+
+  return { screens, css, js };
 }
 
-.hero h1 {
-  margin: 10px 0 8px;
-  font-size: clamp(2.2rem, 5vw, 3.8rem);
-  line-height: 0.98;
-}
-
-.hero p {
-  max-width: 56ch;
-  color: var(--muted);
-}
-
-.eyebrow, .feature-label {
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 0.72rem;
-  color: var(--accent);
-}
-
-.feature-grid {
-  display: grid;
-  gap: 18px;
-  margin-top: 28px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.layout-mobile .feature-grid {
-  grid-template-columns: 1fr;
-  max-width: 420px;
-}
-
-.layout-studio .feature-grid {
-  grid-template-columns: 1.2fr 0.8fr;
-}
-
-.feature-card {
-  padding: 22px;
-  border-radius: 28px;
-  background: var(--panel);
-  border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 20px 50px rgba(0,0,0,0.12);
-}
-
-.feature-card.wide {
-  grid-column: 1 / -1;
-}
-
-.primary-action {
-  margin-top: 16px;
-  border: 0;
-  border-radius: 999px;
-  padding: 12px 18px;
-  background: var(--accent);
-  color: white;
-  font-weight: 600;
-}`;
-
-  const js = `const state = {
-  title: "${escapeJs(title)}",
-  summary: "${escapeJs(summary)}",
-  layout: "${props.layout}",
-  palette: "${props.palette}"
-};
-
-console.log("Builder preview ready", state);`;
-
-  return { html, css, js };
-}
-
-export function buildPreviewDocument(code: BuildCode) {
+export function buildPreviewDocument(code: BuildCode, activeScreen: BuildScreenId) {
+  const body = code.screens[activeScreen] ?? code.screens.home;
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -330,14 +317,39 @@ export function buildPreviewDocument(code: BuildCode) {
     <style>${code.css}</style>
   </head>
   <body>
-    ${code.html}
+    <nav class="top-nav">
+      <a href="home.html" data-screen-link>Home</a>
+      <a href="details.html" data-screen-link>Details</a>
+      <a href="settings.html" data-screen-link>Settings</a>
+    </nav>
+    ${body}
     <script>${code.js}<\/script>
   </body>
 </html>`;
 }
 
+export function buildStructuredExportFiles(code: BuildCode) {
+  return {
+    "index.html": wrapScreenDocument("Home", code, "home"),
+    "details.html": wrapScreenDocument("Details", code, "details"),
+    "settings.html": wrapScreenDocument("Settings", code, "settings"),
+    "styles.css": code.css,
+    "app.js": code.js,
+    "builder.manifest.json": JSON.stringify(
+      {
+        version: 1,
+        screens: SCREEN_ORDER,
+        generatedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    ),
+  } as const;
+}
+
 export function parseGeneratedBuildResponse(raw: string): {
   title?: string;
+  screens?: Partial<BuildScreens>;
   html?: string;
   css?: string;
   js?: string;
@@ -362,9 +374,49 @@ export function parseGeneratedBuildResponse(raw: string): {
   return null;
 }
 
+function wrapScreenDocument(title: string, code: BuildCode, screen: BuildScreenId) {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${title}</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <nav class="top-nav">
+      <a href="index.html">Home</a>
+      <a href="details.html">Details</a>
+      <a href="settings.html">Settings</a>
+    </nav>
+    ${code.screens[screen]}
+    <script src="app.js"><\/script>
+  </body>
+</html>`;
+}
+
+function screenLabel(screen: BuildScreenId) {
+  switch (screen) {
+    case "home":
+      return "Home";
+    case "details":
+      return "Details";
+    case "settings":
+      return "Settings";
+    default:
+      return screen;
+  }
+}
+
 function safeParseJson(raw: string) {
   try {
-    return JSON.parse(raw) as { title?: string; html?: string; css?: string; js?: string };
+    return JSON.parse(raw) as {
+      title?: string;
+      screens?: Partial<BuildScreens>;
+      html?: string;
+      css?: string;
+      js?: string;
+    };
   } catch {
     return null;
   }
@@ -374,15 +426,6 @@ function summarizePrompt(prompt: string) {
   const trimmed = prompt.trim();
   if (!trimmed) return "A polished assistant-built app concept with a clean layout and a clear next step.";
   return trimmed.length > 160 ? `${trimmed.slice(0, 157)}...` : trimmed;
-}
-
-function cardCopy(summary: string) {
-  return {
-    primaryTitle: "A calmer first screen",
-    primaryBody: `Lead with the most useful job to be done, then support it with just enough detail. ${summary}`,
-    secondaryTitle: "A preview that feels real",
-    secondaryBody: "Use stronger type, warmer spacing, and a focused call to action so the concept looks product-ready, not like a wireframe.",
-  };
 }
 
 function labelForLayout(layout: BuildLayout) {
@@ -406,7 +449,6 @@ function paletteFor(palette: BuildPalette) {
         ink: "#ecf8ff",
         muted: "rgba(214, 237, 247, 0.72)",
         accent: "#4cc9f0",
-        soft: "rgba(76, 201, 240, 0.18)",
         glow: "rgba(76, 201, 240, 0.22)",
       };
     case "forest":
@@ -417,7 +459,6 @@ function paletteFor(palette: BuildPalette) {
         ink: "#eff8f1",
         muted: "rgba(214, 234, 218, 0.72)",
         accent: "#57cc99",
-        soft: "rgba(87, 204, 153, 0.18)",
         glow: "rgba(87, 204, 153, 0.22)",
       };
     case "graphite":
@@ -428,7 +469,6 @@ function paletteFor(palette: BuildPalette) {
         ink: "#f5f5f7",
         muted: "rgba(217, 218, 223, 0.68)",
         accent: "#ff7a59",
-        soft: "rgba(255, 122, 89, 0.18)",
         glow: "rgba(255, 122, 89, 0.18)",
       };
     default:
@@ -439,7 +479,6 @@ function paletteFor(palette: BuildPalette) {
         ink: "#41210f",
         muted: "rgba(88, 52, 34, 0.72)",
         accent: "#ef6c3e",
-        soft: "rgba(239, 108, 62, 0.16)",
         glow: "rgba(255, 171, 128, 0.26)",
       };
   }
@@ -452,8 +491,4 @@ function escapeHtml(value: string) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
-}
-
-function escapeJs(value: string) {
-  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"').replaceAll("\n", "\\n");
 }

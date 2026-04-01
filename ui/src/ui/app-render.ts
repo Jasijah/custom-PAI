@@ -106,7 +106,12 @@ export type AppViewState = {
   buildTitle: string;
   buildPalette: "sunrise" | "ocean" | "forest" | "graphite";
   buildLayout: "dashboard" | "mobile" | "studio";
-  buildCode: { html: string; css: string; js: string };
+  buildCode: {
+    screens: { home: string; details: string; settings: string };
+    css: string;
+    js: string;
+  };
+  buildActiveScreen: "home" | "details" | "settings";
   buildDrafts: BuildDraftRecord[];
   buildSelectedDraftId: string | null;
   buildGenerating: boolean;
@@ -479,6 +484,7 @@ export function renderApp(state: AppViewState) {
               palette: state.buildPalette,
               layout: state.buildLayout,
               code: state.buildCode,
+              activeScreen: state.buildActiveScreen,
               drafts: state.buildDrafts,
               selectedDraftId: state.buildSelectedDraftId,
               generating: state.buildGenerating,
@@ -487,7 +493,17 @@ export function renderApp(state: AppViewState) {
               onPromptChange: (next) => (state.buildPrompt = next),
               onPaletteChange: (next) => (state.buildPalette = next),
               onLayoutChange: (next) => (state.buildLayout = next),
-              onCodeChange: (kind, next) => (state.buildCode = { ...state.buildCode, [kind]: next }),
+              onScreenChange: (next) => (state.buildActiveScreen = next),
+              onCodeChange: (kind, next, screen) => {
+                if (kind === "screen" && screen) {
+                  state.buildCode = {
+                    ...state.buildCode,
+                    screens: { ...state.buildCode.screens, [screen]: next },
+                  };
+                  return;
+                }
+                state.buildCode = { ...state.buildCode, [kind]: next };
+              },
               onGenerate: () => state.handleBuildGenerate(),
               onSaveDraft: () => state.handleBuildSaveDraft(),
               onExport: () => state.handleBuildExport(),
