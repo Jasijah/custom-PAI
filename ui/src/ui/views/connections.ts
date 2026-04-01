@@ -91,17 +91,30 @@ export function renderConnections(props: ConnectionsProps) {
     });
 
   return html`
+    <section class="provider-hero">
+      <div>
+        <div class="provider-hero__eyebrow">Setup</div>
+        <h2>Connect the services your assistant should use.</h2>
+        <p>
+          This page is only for setup and maintenance. Health summaries live on Home, and raw diagnostics stay in Developer Tools.
+        </p>
+      </div>
+      <div class="provider-summary">
+        ${providerOrder.map((key) => renderProviderSummary(key, props))}
+      </div>
+    </section>
+
     <section class="grid grid-cols-2">
       ${orderedProviders.map((provider) =>
         renderProvider(provider.key, props, { whatsapp, telegram, discord, signal, imessage }),
       )}
     </section>
 
-    <section class="card" style="margin-top: 18px;">
+    <section class="card card-soft" style="margin-top: 18px;">
       <div class="row" style="justify-content: space-between;">
         <div>
-          <div class="card-title">Connection health</div>
-          <div class="card-sub">Provider status snapshots from the gateway.</div>
+          <div class="section-title">Technical status snapshot</div>
+          <div class="section-sub">Use this only when you need the raw provider payload from the gateway.</div>
         </div>
         <div class="muted">${props.lastSuccessAt ? formatAgo(props.lastSuccessAt) : "n/a"}</div>
       </div>
@@ -110,11 +123,41 @@ export function renderConnections(props: ConnectionsProps) {
             ${props.lastError}
           </div>`
         : nothing}
-      <pre class="code-block" style="margin-top: 12px;">
+      <details style="margin-top: 12px;">
+        <summary class="muted">Show raw provider snapshot</summary>
+        <pre class="code-block" style="margin-top: 12px;">
 ${props.snapshot ? JSON.stringify(props.snapshot, null, 2) : "No snapshot yet."}
-      </pre>
+        </pre>
+      </details>
     </section>
   `;
+}
+
+function renderProviderSummary(key: ProviderKey, props: ConnectionsProps) {
+  const enabled = providerEnabled(key, props);
+  return html`
+    <div class="provider-summary__item">
+      <span>${providerTitle(key)}</span>
+      <strong>${enabled ? "Connected" : "Not set up"}</strong>
+    </div>
+  `;
+}
+
+function providerTitle(key: ProviderKey) {
+  switch (key) {
+    case "whatsapp":
+      return "WhatsApp";
+    case "telegram":
+      return "Telegram";
+    case "discord":
+      return "Discord";
+    case "signal":
+      return "Signal";
+    case "imessage":
+      return "iMessage";
+    default:
+      return key;
+  }
 }
 
 function formatDuration(ms?: number | null) {

@@ -1,8 +1,9 @@
 import { html, nothing } from "lit";
 
+import type { EventLogEntry } from "../app-render";
 import type { ActionCard, VoicePrefs } from "../cognitive-store";
-import type { SessionsListResult } from "../types";
-import { resolveToolDisplay, formatToolDetail } from "../tool-display";
+import type { ProvidersStatusSnapshot, SessionsListResult } from "../types";
+import { formatToolDetail, resolveToolDisplay } from "../tool-display";
 
 export type ChatProps = {
   sessionKey: string;
@@ -17,6 +18,8 @@ export type ChatProps = {
   canSend: boolean;
   disabledReason: string | null;
   sessions: SessionsListResult | null;
+  eventLog: EventLogEntry[];
+  providersSnapshot: ProvidersStatusSnapshot | null;
   onRefresh: () => void;
   onDraftChange: (next: string) => void;
   onSend: () => void;
@@ -36,105 +39,197 @@ export function renderChat(props: ChatProps) {
   const canInteract = props.connected;
   const canCompose = props.canSend && !props.sending;
   const sessionOptions = resolveSessionOptions(props.sessionKey, props.sessions);
+  const recentSessions = sessionOptions.slice(0, 6);
+  const inspectorEvents = props.eventLog.filter((entry) => entry.event === "chat").slice(0, 4);
   const composePlaceholder = (() => {
-    if (!props.connected) return "Connect to the gateway to start chatting…";
-    if (!props.canSend) return "Connect an iOS/Android node to enable Web Chat + Talk…";
-    return "Message (⌘↩ to send)";
+    if (!props.connected) return "Connect to your gateway to begin.";
+    if (!props.canSend) return "Connect a mobile node to unlock talk and voice.";
+    return "Ask anything, plan your day, or tell your assistant what matters.";
   })();
+  const quickPrompts = [
+    "Help me plan today",
+    "Summarize what changed recently",
+    "Create three next steps for my project",
+    "Check whether Gemini is still connected",
+  ];
+  const geminiConnected = Boolean(props.connected && props.providersSnapshot);
 
   return html`
-    <section class="card chat">
-      <div class="chat-header">
-        <div class="chat-header__left">
-          <label class="field chat-session">
-            <span>Session Key</span>
-            <select
-              .value=${props.sessionKey}
-              ?disabled=${!canInteract}
-              @change=${(e: Event) =>
-                props.onSessionKeyChange((e.target as HTMLSelectElement).value)}
-            >
-              ${sessionOptions.map(
-                (entry) =>
-                  html`<option value=${entry.key}>
-                    ${entry.displayName ?? entry.key}
-                  </option>`,
-              )}
-            </select>
-          </label>
-          <button
-            class="btn"
-            ?disabled=${props.loading || !canInteract}
-            @click=${props.onRefresh}
-          >
-            ${props.loading ? "Loading…" : "Refresh"}
+    <section class="chat-layout">
+      <aside class="chat-rail">
+        <div class="chat-rail__header">
+          <div>
+            <div class="section-title">Conversations</div>
+            <div class="section-sub">Jump between recent threads without leaving the page.</div>
+          </div>
+          <button class="btn" ?disabled=${props.loading || !canInteract} @click=${props.onRefresh}>
+            ${props.loading ? "Loading..." : "Refresh"}
           </button>
         </div>
-        <div class="chat-header__right">
-          <div class="muted">Thinking: ${props.thinkingLevel ?? "inherit"}</div>
+        <div class="chat-session-list">
+          ${recentSessions.map(
+            (entry) => html`
+              <button
+                class="chat-session-card ${entry.key === props.sessionKey ? "active" : ""}"
+                @click=${() => props.onSessionKeyChange(entry.key)}
+              >
+                <span class="chat-session-card__title">${entry.displayName ?? entry.key}</span>
+                <span class="chat-session-card__sub">${entry.updatedAt ? formatSessionTime(entry.updatedAt) : "Ready to use"}</span>
+              </button>
+            `,
+          )}
         </div>
-      </div>
+      </aside>
 
-      ${props.disabledReason
-        ? html`<div class="callout" style="margin-top: 12px;">
-            ${props.disabledReason}
-          </div>`
-        : nothing}
+      <div class="card chat chat-main">
+        <div class="chat-header">
+          <div class="chat-header__left">
+            <label class="field chat-session">
+              <span>Current conversation</span>
+              <select
+                .value=${props.sessionKey}
+                ?disabled=${!canInteract}
+                @change=${(e: Event) =>
+                  props.onSessionKeyChange((e.target as HTMLSelectElement).value)}
+              >
+                ${sessionOptions.map(
+                  (entry) =>
+                    html`<option value=${entry.key}>
+                      ${entry.displayName ?? entry.key}
+                    </option>`,
+                )}
+              </select>
+            </label>
+          </div>
+          <div class="chat-header__right">
+            <div class="chat-health">
+              <span class="statusDot ${geminiConnected ? "ok" : ""}"></span>
+              <span>${props.connected ? "Gemini ready" : "Offline"}</span>
+            </div>
+            <div class="muted">Thinking: ${props.thinkingLevel ?? "balanced"}</div>
+          </div>
+        </div>
 
-
-      ${props.actionCards.length
-        ? html`<div class="stack" style="margin-top: 12px;">
-            ${props.actionCards.map((card) => html`<div class="chat-tool-card"><div class="chat-tool-card__title">🧠 Action Card · ${card.title}</div><div class="chat-tool-card__detail">${card.whyRetrieved}</div><div class="row" style="margin-top:8px;"><button class="btn primary" @click=${() => props.onAction(card.id, "accepted")}>Accept</button><button class="btn" @click=${() => props.onAction(card.id, "scheduled")}>Schedule</button><button class="btn danger" @click=${() => props.onAction(card.id, "dismissed")}>Dismiss</button><button class="btn" @click=${() => props.onReflect(card.id, true, 4, "")}>Reflect</button></div></div>`)}
-          </div>`
-        : nothing}
-
-      <div class="chat-thread" role="log" aria-live="polite">
-        ${props.loading ? html`<div class="muted">Loading chat…</div>` : nothing}
-        ${props.messages.map((m) => renderMessage(m, { onReadAloud: props.onReadAloud }))}
-        ${props.stream
-          ? renderMessage(
-              {
-                role: "assistant",
-                content: [{ type: "text", text: props.stream }],
-                timestamp: Date.now(),
-              },
-              { streaming: true, onReadAloud: props.onReadAloud },
-            )
+        ${props.disabledReason
+          ? html`<div class="callout" style="margin-top: 12px;">
+              ${props.disabledReason}
+            </div>`
           : nothing}
-      </div>
 
-      <div class="chat-compose">
-        <label class="field chat-compose__field">
-          <span>Message</span>
-          <textarea
-            .value=${props.draft}
-            ?disabled=${!props.canSend}
-            @keydown=${(e: KeyboardEvent) => {
-              if (e.key !== "Enter") return;
-              if (!e.metaKey && !e.ctrlKey) return;
-              e.preventDefault();
-              if (canCompose) props.onSend();
-            }}
-            @input=${(e: Event) =>
-              props.onDraftChange((e.target as HTMLTextAreaElement).value)}
-            placeholder=${composePlaceholder}
-          ></textarea>
-        </label>
-        <div class="row chat-compose__actions">
-          <button class="btn" ?disabled=${!props.voiceSupported} @click=${props.voiceListening ? props.onVoiceStop : props.onVoiceStart}>${props.voiceListening ? "Stop Mic" : "Mic"}</button>
-          <label class="row muted" style="gap:6px;"><input type="checkbox" .checked=${props.voice.autoRead} @change=${(e: Event) => props.onVoiceChange({ autoRead: (e.target as HTMLInputElement).checked })}/>Auto-read</label>
-          <label class="row muted" style="gap:6px;"><input type="checkbox" .checked=${props.voice.announceOnline} @change=${(e: Event) => props.onVoiceChange({ announceOnline: (e.target as HTMLInputElement).checked })}/>Announce online</label>
-          <label class="field" style="min-width:160px;"><span>TTS Provider</span><select .value=${props.voice.provider} @change=${(e: Event) => props.onVoiceChange({ provider: (e.target as HTMLSelectElement).value as VoicePrefs["provider"] })}><option value="nvidia">NVIDIA Voice LLM</option><option value="browser">Browser</option></select></label>
-          <label class="field" style="min-width:160px;"><span>NVIDIA voice</span><input .value=${props.voice.nvidiaVoice} @input=${(e: Event) => props.onVoiceChange({ nvidiaVoice: (e.target as HTMLInputElement).value.trim() || "alloy" })} placeholder="alloy" /></label>
-          <label class="field" style="min-width:160px;"><span>Rate</span><input type="range" min="0.6" max="1.6" step="0.1" .value=${String(props.voice.rate)} @input=${(e: Event) => props.onVoiceChange({ rate: Number((e.target as HTMLInputElement).value) })}/></label>
-          <label class="field" style="min-width:160px;"><span>Pitch</span><input type="range" min="0.6" max="1.6" step="0.1" .value=${String(props.voice.pitch)} @input=${(e: Event) => props.onVoiceChange({ pitch: Number((e.target as HTMLInputElement).value) })}/></label>
-          <button
-            class="btn primary"
-            ?disabled=${!props.canSend || props.sending}
-            @click=${props.onSend}
-          >
-            ${props.sending ? "Sending…" : "Send"}
-          </button>
+        <div class="chat-chips">
+          ${quickPrompts.map(
+            (prompt) => html`
+              <button class="chip action" @click=${() => props.onDraftChange(prompt)}>${prompt}</button>
+            `,
+          )}
+        </div>
+
+        ${props.actionCards.length
+          ? html`<div class="action-strip">
+              ${props.actionCards.map(
+                (card) => html`
+                  <div class="action-strip__item">
+                    <div>
+                      <div class="action-strip__title">${card.title}</div>
+                      <div class="action-strip__sub">${card.whyRetrieved}</div>
+                    </div>
+                    <div class="row">
+                      <button class="btn primary" @click=${() => props.onAction(card.id, "accepted")}>Keep</button>
+                      <button class="btn" @click=${() => props.onAction(card.id, "scheduled")}>Later</button>
+                    </div>
+                  </div>
+                `,
+              )}
+            </div>`
+          : nothing}
+
+        <div class="chat-body">
+          <div class="chat-thread" role="log" aria-live="polite">
+            ${props.loading ? html`<div class="muted">Loading chat...</div>` : nothing}
+            ${props.messages.map((m) => renderMessage(m, { onReadAloud: props.onReadAloud }))}
+            ${props.stream
+              ? renderMessage(
+                  {
+                    role: "assistant",
+                    content: [{ type: "text", text: props.stream }],
+                    timestamp: Date.now(),
+                  },
+                  { streaming: true, onReadAloud: props.onReadAloud },
+                )
+              : nothing}
+          </div>
+
+          <aside class="chat-inspector">
+            <div class="chat-inspector__section">
+              <div class="section-title">Live status</div>
+              <div class="stat-grid compact">
+                <div class="stat">
+                  <div class="stat-label">Streaming</div>
+                  <div class="stat-value">${props.stream ? "Live" : "Idle"}</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">Voice</div>
+                  <div class="stat-value">${props.voiceListening ? "Listening" : "Ready"}</div>
+                </div>
+              </div>
+            </div>
+            <div class="chat-inspector__section">
+              <div class="section-title">Recent stream events</div>
+              <div class="timeline compact">
+                ${inspectorEvents.length
+                  ? inspectorEvents.map(
+                      (entry) => html`
+                        <div class="timeline-item">
+                          <div class="timeline-item__dot"></div>
+                          <div class="timeline-item__body">
+                            <div class="timeline-item__title">${new Date(entry.ts).toLocaleTimeString()}</div>
+                            <div class="timeline-item__sub">${entry.event}</div>
+                          </div>
+                        </div>
+                      `,
+                    )
+                  : html`<div class="muted">The stream inspector will populate during active replies.</div>`}
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="chat-compose">
+          <label class="field chat-compose__field">
+            <span>Message</span>
+            <textarea
+              .value=${props.draft}
+              ?disabled=${!props.canSend}
+              @keydown=${(e: KeyboardEvent) => {
+                if (e.key !== "Enter") return;
+                if (!e.metaKey && !e.ctrlKey) return;
+                e.preventDefault();
+                if (canCompose) props.onSend();
+              }}
+              @input=${(e: Event) =>
+                props.onDraftChange((e.target as HTMLTextAreaElement).value)}
+              placeholder=${composePlaceholder}
+            ></textarea>
+          </label>
+          <div class="chat-compose__toolbar">
+            <button class="btn" ?disabled=${!props.voiceSupported} @click=${props.voiceListening ? props.onVoiceStop : props.onVoiceStart}>${props.voiceListening ? "Stop mic" : "Use mic"}</button>
+            <label class="row muted"><input type="checkbox" .checked=${props.voice.autoRead} @change=${(e: Event) => props.onVoiceChange({ autoRead: (e.target as HTMLInputElement).checked })}/>Read replies aloud</label>
+            <label class="row muted"><input type="checkbox" .checked=${props.voice.announceOnline} @change=${(e: Event) => props.onVoiceChange({ announceOnline: (e.target as HTMLInputElement).checked })}/>Announce when ready</label>
+            <label class="field compact">
+              <span>Voice</span>
+              <select .value=${props.voice.provider} @change=${(e: Event) => props.onVoiceChange({ provider: (e.target as HTMLSelectElement).value as VoicePrefs["provider"] })}>
+                <option value="nvidia">NVIDIA Voice LLM</option>
+                <option value="browser">Browser</option>
+              </select>
+            </label>
+            <button
+              class="btn primary"
+              ?disabled=${!props.canSend || props.sending}
+              @click=${props.onSend}
+            >
+              ${props.sending ? "Sending..." : "Send"}
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -189,6 +284,15 @@ function resolveSessionOptions(
   }
 
   return result;
+}
+
+function formatSessionTime(updatedAt: number) {
+  return new Date(updatedAt).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function renderMessage(message: unknown, opts?: { streaming?: boolean; onReadAloud?: (text: string) => void }) {

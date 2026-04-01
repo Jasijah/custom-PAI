@@ -91,6 +91,8 @@ export type AppViewState = {
   hello: GatewayHelloOk | null;
   lastError: string | null;
   eventLog: EventLogEntry[];
+  paletteOpen: boolean;
+  paletteQuery: string;
   sessionKey: string;
   chatLoading: boolean;
   chatSending: boolean;
@@ -170,6 +172,8 @@ export type AppViewState = {
   client: GatewayBrowserClient | null;
   connect: () => void;
   setTab: (tab: Tab) => void;
+  openPalette: () => void;
+  closePalette: () => void;
   setTheme: (theme: ThemeMode, context?: ThemeTransitionContext) => void;
   applySettings: (next: UiSettings) => void;
   loadOverview: () => Promise<void>;
@@ -219,18 +223,31 @@ export function renderApp(state: AppViewState) {
       ? null
       : "No connected iOS/Android node — Web Chat + Talk are disabled.";
 
+  const linkedProviders = countLinkedProviders(state.providersSnapshot);
+  const timeline = state.eventLog.slice(0, 8);
+  const paletteResults = resolvePaletteResults(state.paletteQuery);
+
   return html`
     <div class="shell">
       <header class="topbar">
-        <div class="brand">
-          <div class="brand-title">Personal AI Control</div>
-          <div class="brand-sub">Gateway + cognitive dashboard</div>
+        <div class="brand brand-rich">
+          <div class="brand-kicker">Everyday assistant</div>
+          <div class="brand-title">Clawdis</div>
+          <div class="brand-sub">One place for conversations, connected apps, and your daily rhythm.</div>
         </div>
         <div class="topbar-status">
+          <button class="quick-search" @click=${() => state.openPalette()} aria-label="Open command palette">
+            <span>Search or jump</span>
+            <span class="quick-search__hint">Ctrl K</span>
+          </button>
           <div class="pill">
             <span class="statusDot ${state.connected ? "ok" : ""}"></span>
-            <span>Health</span>
+            <span>${state.connected ? "Ready" : "Offline"}</span>
             <span class="mono">${state.connected ? "OK" : "Offline"}</span>
+          </div>
+          <div class="pill subtle">
+            <span>Linked apps</span>
+            <span class="mono">${linkedProviders}</span>
           </div>
           ${renderThemeToggle(state)}
         </div>
@@ -248,6 +265,7 @@ export function renderApp(state: AppViewState) {
       <main class="content">
         <section class="content-header">
           <div>
+            <div class="page-kicker">${pageKickerForTab(state.tab)}</div>
             <div class="page-title">${titleForTab(state.tab)}</div>
             <div class="page-sub">${subtitleForTab(state.tab)}</div>
           </div>
@@ -269,6 +287,9 @@ export function renderApp(state: AppViewState) {
               sessionsCount,
               cronEnabled: state.cronStatus?.enabled ?? null,
               cronNext,
+              nodes: state.nodes,
+              providersSnapshot: state.providersSnapshot,
+              eventLog: timeline,
               lastProvidersRefresh: state.providersLastSuccess,
               onSettingsChange: (next) => state.applySettings(next),
               onPasswordChange: (next) => (state.password = next),
@@ -417,6 +438,8 @@ export function renderApp(state: AppViewState) {
               canSend: state.connected && hasConnectedMobileNode,
               disabledReason: chatDisabledReason,
               sessions: state.sessionsResult,
+              eventLog: timeline,
+              providersSnapshot: state.providersSnapshot,
               onRefresh: () => loadChatHistory(state),
               onDraftChange: (next) => (state.chatMessage = next),
               onSend: () => state.handleSendChat(),
@@ -503,8 +526,9 @@ export function renderApp(state: AppViewState) {
           : nothing}
       </main>
       <nav class="mobile-tabs" aria-label="Mobile navigation">
-        ${["chat", "memory", "agents", "trust", "dashboard"].map((tab) => renderTab(state, tab as Tab))}
+        ${["overview", "chat", "connections", "sessions", "dashboard"].map((tab) => renderTab(state, tab as Tab))}
       </nav>
+      ${state.paletteOpen ? renderCommandPalette(state, paletteResults) : nothing}
     </div>
   `;
 }
@@ -532,6 +556,90 @@ function renderTab(state: AppViewState, tab: Tab) {
     >
       <span>${titleForTab(tab)}</span>
     </a>
+  `;
+}
+
+function countLinkedProviders(snapshot: ProvidersStatusSnapshot | null) {
+  if (!snapshot) return 0;
+  const flags = [
+    snapshot.whatsapp.configured || snapshot.whatsapp.linked || snapshot.whatsapp.running,
+    snapshot.telegram.configured || snapshot.telegram.running,
+    Boolean(snapshot.discord?.configured || snapshot.discord?.running),
+    Boolean(snapshot.signal?.configured || snapshot.signal?.running),
+    Boolean(snapshot.imessage?.configured || snapshot.imessage?.running),
+  ];
+  return flags.filter(Boolean).length;
+}
+
+function pageKickerForTab(tab: Tab) {
+  switch (tab) {
+    case "overview":
+      return "Today";
+    case "chat":
+      return "Workspace";
+    case "connections":
+      return "Setup";
+    case "sessions":
+      return "History";
+    case "dashboard":
+      return "Wellbeing";
+    case "debug":
+      return "Advanced";
+    default:
+      return "Control";
+  }
+}
+
+function resolvePaletteResults(query: string) {
+  const allTabs = TAB_GROUPS.flatMap((group) => group.tabs);
+  const needle = query.trim().toLowerCase();
+  return allTabs
+    .filter((tab, index, arr) => arr.indexOf(tab) === index)
+    .map((tab) => ({
+      tab,
+      title: titleForTab(tab),
+      subtitle: subtitleForTab(tab),
+    }))
+    .filter((entry) => {
+      if (!needle) return true;
+      return `${entry.title} ${entry.subtitle}`.toLowerCase().includes(needle);
+    })
+    .slice(0, 8);
+}
+
+function renderCommandPalette(
+  state: AppViewState,
+  results: Array<{ tab: Tab; title: string; subtitle: string }>,
+) {
+  return html`
+    <div class="palette-backdrop" @click=${() => state.closePalette()}>
+      <section class="palette" @click=${(event: Event) => event.stopPropagation()}>
+        <div class="palette-search">
+          <input
+            autofocus
+            .value=${state.paletteQuery}
+            @input=${(event: Event) => {
+              state.paletteQuery = (event.target as HTMLInputElement).value;
+            }}
+            placeholder="Search pages, settings, and workspaces"
+          />
+        </div>
+        <div class="palette-results">
+          ${results.map(
+            (entry) => html`
+              <button
+                class="palette-item ${state.tab === entry.tab ? "active" : ""}"
+                @click=${() => state.setTab(entry.tab)}
+              >
+                <span class="palette-item__title">${entry.title}</span>
+                <span class="palette-item__sub">${entry.subtitle}</span>
+              </button>
+            `,
+          )}
+          ${results.length === 0 ? html`<div class="palette-empty">No matches yet.</div>` : nothing}
+        </div>
+      </section>
+    </div>
   `;
 }
 

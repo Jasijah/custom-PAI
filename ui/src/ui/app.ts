@@ -120,6 +120,8 @@ export class ClawdisApp extends LitElement {
   @state() hello: GatewayHelloOk | null = null;
   @state() lastError: string | null = null;
   @state() eventLog: EventLogEntry[] = [];
+  @state() paletteOpen = false;
+  @state() paletteQuery = "";
 
   @state() sessionKey = this.settings.sessionKey;
   @state() chatLoading = false;
@@ -262,6 +264,7 @@ export class ClawdisApp extends LitElement {
   private nodesPollInterval: number | null = null;
   basePath = "";
   private popStateHandler = () => this.onPopState();
+  private keyDownHandler = (event: KeyboardEvent) => this.onKeyDown(event);
   private themeMedia: MediaQueryList | null = null;
   private themeMediaHandler: ((event: MediaQueryListEvent) => void) | null = null;
   private speechRec: { stop: () => void } | null = null;
@@ -277,6 +280,7 @@ export class ClawdisApp extends LitElement {
     this.syncThemeWithSettings();
     this.attachThemeListener();
     window.addEventListener("popstate", this.popStateHandler);
+    window.addEventListener("keydown", this.keyDownHandler);
     this.applySettingsFromUrl();
     this.connect();
     this.startNodesPolling();
@@ -285,6 +289,7 @@ export class ClawdisApp extends LitElement {
 
   disconnectedCallback() {
     window.removeEventListener("popstate", this.popStateHandler);
+    window.removeEventListener("keydown", this.keyDownHandler);
     this.stopNodesPolling();
     this.detachThemeListener();
     super.disconnectedCallback();
@@ -457,8 +462,19 @@ export class ClawdisApp extends LitElement {
 
   setTab(next: Tab) {
     if (this.tab !== next) this.tab = next;
+    this.paletteOpen = false;
+    this.paletteQuery = "";
     void this.refreshActiveTab();
     this.syncUrlWithTab(next, false);
+  }
+
+  openPalette() {
+    this.paletteOpen = true;
+  }
+
+  closePalette() {
+    this.paletteOpen = false;
+    this.paletteQuery = "";
   }
 
   setTheme(next: ThemeMode, context?: ThemeTransitionContext) {
@@ -555,6 +571,31 @@ export class ClawdisApp extends LitElement {
     const resolved = tabFromPath(window.location.pathname, this.basePath);
     if (!resolved) return;
     this.setTabFromRoute(resolved);
+  }
+
+  private onKeyDown(event: KeyboardEvent) {
+    const target = event.target as HTMLElement | null;
+    const tag = target?.tagName?.toLowerCase();
+    const editable =
+      tag === "input" ||
+      tag === "textarea" ||
+      tag === "select" ||
+      target?.isContentEditable;
+
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      this.paletteOpen = true;
+      return;
+    }
+
+    if (!this.paletteOpen) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      this.closePalette();
+      return;
+    }
+
+    if (editable) return;
   }
 
   private setTabFromRoute(next: Tab) {

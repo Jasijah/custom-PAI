@@ -1,9 +1,11 @@
 import { html } from "lit";
 
+import type { EventLogEntry } from "../app-render";
 import type { GatewayHelloOk } from "../gateway";
 import { formatAgo, formatDurationMs } from "../format";
 import { formatNextRun } from "../presenter";
 import type { UiSettings } from "../storage";
+import type { ProvidersStatusSnapshot } from "../types";
 
 export type OverviewProps = {
   connected: boolean;
@@ -15,6 +17,9 @@ export type OverviewProps = {
   sessionsCount: number | null;
   cronEnabled: boolean | null;
   cronNext: number | null;
+  nodes: Array<Record<string, unknown>>;
+  providersSnapshot: ProvidersStatusSnapshot | null;
+  eventLog: EventLogEntry[];
   lastProvidersRefresh: number | null;
   onSettingsChange: (next: UiSettings) => void;
   onPasswordChange: (next: string) => void;
@@ -30,15 +35,85 @@ export function renderOverview(props: OverviewProps) {
   const tick = snapshot?.policy?.tickIntervalMs
     ? `${snapshot.policy.tickIntervalMs}ms`
     : "n/a";
+  const linkedApps = countLinkedApps(props.providersSnapshot);
+  const activeDevices = props.nodes.filter((node) => Boolean(node.connected)).length;
 
   return html`
+    <section class="hero-panel">
+      <div class="hero-panel__copy">
+        <div class="hero-panel__eyebrow">${props.connected ? "Everything is connected" : "Connection needs attention"}</div>
+        <h2>Keep up with your assistant at a glance.</h2>
+        <p>
+          Home is the quick read: what is connected, what changed recently, and where to go next.
+        </p>
+        <div class="hero-panel__actions">
+          <button class="btn primary" @click=${() => props.onRefresh()}>Refresh</button>
+          <div class="hero-panel__hint">Use Linked Apps for setup and Conversations for detailed history.</div>
+        </div>
+      </div>
+      <div class="hero-panel__stats">
+        ${renderHeroStat("Status", props.connected ? "Ready" : "Offline", props.connected ? "Connected to your gateway" : "Reconnect to resume sync")}
+        ${renderHeroStat("Linked apps", String(linkedApps), "Gemini and messaging services")}
+        ${renderHeroStat("Active devices", String(activeDevices), "Browsers, phones, and nodes online")}
+        ${renderHeroStat("Next routine", formatNextRun(props.cronNext), props.cronEnabled ? "Routines are enabled" : "No active routine yet")}
+      </div>
+    </section>
+
     <section class="grid grid-cols-2">
-      <div class="card">
-        <div class="card-title">Gateway Access</div>
-        <div class="card-sub">Where the dashboard connects and how it authenticates.</div>
+      <div class="card card-soft">
+        <div class="section-title">Quick health</div>
+        <div class="section-sub">A simple system snapshot without dropping you into technical logs.</div>
+        <div class="stat-grid overview-stats">
+          <div class="stat">
+            <div class="stat-label">Gateway uptime</div>
+            <div class="stat-value">${uptime}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Heartbeat rhythm</div>
+            <div class="stat-value">${tick}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Recent conversations</div>
+            <div class="stat-value">${props.sessionsCount ?? "n/a"}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Presence beacons</div>
+            <div class="stat-value">${props.presenceCount}</div>
+          </div>
+        </div>
+        ${props.lastError
+          ? html`<div class="callout danger" style="margin-top: 14px;">${props.lastError}</div>`
+          : html`<div class="callout" style="margin-top: 14px;">Last provider refresh ${props.lastProvidersRefresh ? formatAgo(props.lastProvidersRefresh) : "not available yet"}.</div>`}
+      </div>
+
+      <div class="card card-soft">
+        <div class="section-title">Recent activity</div>
+        <div class="section-sub">A friendly timeline of the latest assistant events.</div>
+        <div class="timeline" style="margin-top: 16px;">
+          ${props.eventLog.length
+            ? props.eventLog.map(
+                (entry) => html`
+                  <div class="timeline-item">
+                    <div class="timeline-item__dot"></div>
+                    <div class="timeline-item__body">
+                      <div class="timeline-item__title">${humanizeEvent(entry.event)}</div>
+                      <div class="timeline-item__sub">${new Date(entry.ts).toLocaleTimeString()}</div>
+                    </div>
+                  </div>
+                `,
+              )
+            : html`<div class="muted">No recent activity yet.</div>`}
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-2">
+      <div class="card card-soft">
+        <div class="section-title">Connection basics</div>
+        <div class="section-sub">Quick local access settings for this device only.</div>
         <div class="form-grid" style="margin-top: 16px;">
           <label class="field">
-            <span>WebSocket URL</span>
+            <span>Gateway address</span>
             <input
               .value=${props.settings.gatewayUrl}
               @input=${(e: Event) => {
@@ -49,7 +124,7 @@ export function renderOverview(props: OverviewProps) {
             />
           </label>
           <label class="field">
-            <span>Gateway Token</span>
+            <span>Gateway token</span>
             <input
               .value=${props.settings.token}
               @input=${(e: Event) => {
@@ -72,7 +147,7 @@ export function renderOverview(props: OverviewProps) {
             />
           </label>
           <label class="field">
-            <span>Default Session Key</span>
+            <span>Default conversation</span>
             <input
               .value=${props.settings.sessionKey}
               @input=${(e: Event) => {
@@ -82,92 +157,59 @@ export function renderOverview(props: OverviewProps) {
             />
           </label>
         </div>
-        <div class="row" style="margin-top: 14px;">
-          <button class="btn" @click=${() => props.onRefresh()}>Refresh</button>
-          <span class="muted">Reconnect to apply changes.</span>
-        </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">Snapshot</div>
-        <div class="card-sub">Latest gateway handshake information.</div>
-        <div class="stat-grid" style="margin-top: 16px;">
-          <div class="stat">
-            <div class="stat-label">Status</div>
-            <div class="stat-value ${props.connected ? "ok" : "warn"}">
-              ${props.connected ? "Connected" : "Disconnected"}
+      <div class="card card-soft">
+        <div class="section-title">Where to go next</div>
+        <div class="section-sub">Each page has one clear job so the app stays simple to navigate.</div>
+        <div class="stack" style="margin-top: 16px;">
+          <div class="list-item simple">
+            <div class="list-main">
+              <div class="list-title">Talk</div>
+              <div class="list-sub">Live conversations, streaming replies, and voice controls.</div>
             </div>
           </div>
-          <div class="stat">
-            <div class="stat-label">Uptime</div>
-            <div class="stat-value">${uptime}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Tick Interval</div>
-            <div class="stat-value">${tick}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Last Providers Refresh</div>
-            <div class="stat-value">
-              ${props.lastProvidersRefresh
-                ? formatAgo(props.lastProvidersRefresh)
-                : "n/a"}
+          <div class="list-item simple">
+            <div class="list-main">
+              <div class="list-title">Linked Apps</div>
+              <div class="list-sub">Gemini setup and messaging integrations only.</div>
             </div>
           </div>
-        </div>
-        ${props.lastError
-          ? html`<div class="callout danger" style="margin-top: 14px;">
-              ${props.lastError}
-            </div>`
-          : html`<div class="callout" style="margin-top: 14px;">
-              Use Connections to link WhatsApp, Telegram, Discord, Signal, or iMessage.
-            </div>`}
-      </div>
-    </section>
-
-    <section class="grid grid-cols-3" style="margin-top: 18px;">
-      <div class="card stat-card">
-        <div class="stat-label">Instances</div>
-        <div class="stat-value">${props.presenceCount}</div>
-        <div class="muted">Presence beacons in the last 5 minutes.</div>
-      </div>
-      <div class="card stat-card">
-        <div class="stat-label">Sessions</div>
-        <div class="stat-value">${props.sessionsCount ?? "n/a"}</div>
-        <div class="muted">Recent session keys tracked by the gateway.</div>
-      </div>
-      <div class="card stat-card">
-        <div class="stat-label">Cron</div>
-        <div class="stat-value">
-          ${props.cronEnabled == null
-            ? "n/a"
-            : props.cronEnabled
-              ? "Enabled"
-              : "Disabled"}
-        </div>
-        <div class="muted">Next wake ${formatNextRun(props.cronNext)}</div>
-      </div>
-    </section>
-
-    <section class="card" style="margin-top: 18px;">
-      <div class="card-title">Notes</div>
-      <div class="card-sub">Quick reminders for remote control setups.</div>
-      <div class="note-grid" style="margin-top: 14px;">
-        <div>
-          <div class="note-title">Tailscale serve</div>
-          <div class="muted">
-            Prefer serve mode to keep the gateway on loopback with tailnet auth.
+          <div class="list-item simple">
+            <div class="list-main">
+              <div class="list-title">Developer Tools</div>
+              <div class="list-sub">Raw logs, manual RPC calls, and snapshots for troubleshooting.</div>
+            </div>
           </div>
-        </div>
-        <div>
-          <div class="note-title">Session hygiene</div>
-          <div class="muted">Use /new or sessions.patch to reset context.</div>
-        </div>
-        <div>
-          <div class="note-title">Cron reminders</div>
-          <div class="muted">Use isolated sessions for recurring runs.</div>
         </div>
       </div>
     </section>
   `;
+}
+
+function renderHeroStat(label: string, value: string, sub: string) {
+  return html`
+    <div class="hero-stat">
+      <div class="hero-stat__label">${label}</div>
+      <div class="hero-stat__value">${value}</div>
+      <div class="hero-stat__sub">${sub}</div>
+    </div>
+  `;
+}
+
+function countLinkedApps(snapshot: ProvidersStatusSnapshot | null) {
+  if (!snapshot) return 0;
+  return [
+    snapshot.whatsapp.configured || snapshot.whatsapp.linked || snapshot.whatsapp.running,
+    snapshot.telegram.configured || snapshot.telegram.running,
+    Boolean(snapshot.discord?.configured || snapshot.discord?.running),
+    Boolean(snapshot.signal?.configured || snapshot.signal?.running),
+    Boolean(snapshot.imessage?.configured || snapshot.imessage?.running),
+  ].filter(Boolean).length;
+}
+
+function humanizeEvent(event: string) {
+  return event
+    .replace(/[_-]/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }

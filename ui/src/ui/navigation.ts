@@ -1,11 +1,10 @@
 export const TAB_GROUPS = [
-  { label: "PAI", tabs: ["chat", "memory", "agents", "trust", "dashboard", "economy"] },
+  { label: "Daily", tabs: ["chat", "dashboard", "memory", "agents"] },
   {
-    label: "Control",
-    tabs: ["overview", "connections", "instances", "sessions", "cron"],
+    label: "Home",
+    tabs: ["overview", "connections", "sessions", "instances", "cron"],
   },
-  { label: "Agent", tabs: ["skills", "nodes"] },
-  { label: "Settings", tabs: ["config", "debug"] },
+  { label: "Advanced", tabs: ["trust", "skills", "nodes", "economy", "config", "debug"] },
 ] as const;
 
 export type Tab =
@@ -91,35 +90,35 @@ export function tabFromPath(pathname: string, basePath = ""): Tab | null {
 export function titleForTab(tab: Tab) {
   switch (tab) {
     case "overview":
-      return "Overview";
+      return "Home";
     case "connections":
-      return "Connections";
+      return "Linked Apps";
     case "instances":
-      return "Instances";
+      return "Devices";
     case "sessions":
-      return "Sessions";
+      return "Conversations";
     case "cron":
-      return "Cron Jobs";
+      return "Routines";
     case "skills":
       return "Skills";
     case "nodes":
-      return "Nodes";
+      return "Connected Nodes";
     case "chat":
-      return "Chat";
+      return "Talk";
     case "memory":
       return "Memory";
     case "agents":
-      return "Agents";
+      return "Suggestions";
     case "trust":
-      return "Trust";
+      return "Privacy & Access";
     case "dashboard":
-      return "Dashboard";
+      return "Daily Rhythm";
     case "economy":
-      return "Economy";
+      return "Budget";
     case "config":
-      return "Config";
+      return "Settings";
     case "debug":
-      return "Debug";
+      return "Developer Tools";
     default:
       return "Control";
   }
@@ -128,35 +127,35 @@ export function titleForTab(tab: Tab) {
 export function subtitleForTab(tab: Tab) {
   switch (tab) {
     case "overview":
-      return "Gateway status, entry points, and a fast health read.";
+      return "A calm home view with health, activity, and the next thing to do.";
     case "connections":
-      return "Link providers and keep transport settings in sync.";
+      return "Connect Gemini and messaging apps in one setup-focused place.";
     case "instances":
-      return "Presence beacons from connected clients and nodes.";
+      return "See which phones, browsers, and clients are currently available.";
     case "sessions":
-      return "Inspect active sessions and adjust per-session defaults.";
+      return "Browse recent conversations and tune per-session behavior.";
     case "cron":
-      return "Schedule wakeups and recurring agent runs.";
+      return "Schedule reminders, wakeups, and recurring assistant runs.";
     case "skills":
       return "Manage skill availability and API key injection.";
     case "nodes":
-      return "Paired devices, capabilities, and command exposure.";
+      return "Inspect paired nodes, capabilities, and command access.";
     case "chat":
-      return "Direct gateway chat session for quick interventions.";
+      return "Your main everyday workspace for talking, listening, and following along.";
     case "memory":
-      return "Memory Vault with layered context and retrieval traces.";
+      return "Search saved context and capture important things worth remembering.";
     case "agents":
-      return "Agent stack suggestions, action cards and reflection loop.";
+      return "Review assistant suggestions and turn them into next steps.";
     case "trust":
-      return "Permissions, grants and append-only audit log.";
+      return "Control permissions, grants, and the audit history.";
     case "dashboard":
-      return "Priorities, wellbeing and activity overview.";
+      return "A personal planning surface for priorities, wellbeing, and momentum.";
     case "economy":
-      return "Personal economy credits and allocation ledger.";
+      return "Track how your assistant budget is allocated.";
     case "config":
-      return "Edit ~/.clawdis/clawdis.json safely.";
+      return "Review and edit local configuration safely.";
     case "debug":
-      return "Gateway snapshots, events, and manual RPC calls.";
+      return "Raw snapshots, logs, and manual tools for troubleshooting.";
     default:
       return "";
   }
