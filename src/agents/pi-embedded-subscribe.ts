@@ -21,7 +21,7 @@ const TOOL_RESULT_MAX_CHARS = 8000;
 
 function truncateToolText(text: string): string {
   if (text.length <= TOOL_RESULT_MAX_CHARS) return text;
-  return `${text.slice(0, TOOL_RESULT_MAX_CHARS)}\n…(truncated)…`;
+  return `${text.slice(0, TOOL_RESULT_MAX_CHARS)}\nâ€¦(truncated)â€¦`;
 }
 
 function sanitizeToolResult(result: unknown): unknown {
@@ -329,14 +329,21 @@ export function subscribeEmbeddedPiSession(params: {
             evtType === "text_start" ||
             evtType === "text_end"
           ) {
-            const chunk =
+            const deltaChunk =
               typeof assistantRecord?.delta === "string"
                 ? assistantRecord.delta
-                : typeof assistantRecord?.content === "string"
-                  ? assistantRecord.content
-                  : "";
-            if (chunk) {
-              deltaBuffer += chunk;
+                : "";
+            const endContentChunk =
+              evtType === "text_end" &&
+              typeof assistantRecord?.content === "string"
+                ? assistantRecord.content
+                : "";
+            if (deltaChunk) {
+              deltaBuffer += deltaChunk;
+            } else if (endContentChunk) {
+              // Some providers send the full block content on text_end instead of a delta.
+              // Replace the buffer so we do not duplicate already-streamed text.
+              deltaBuffer = endContentChunk;
             }
 
             const cleaned = params.enforceFinalTag
