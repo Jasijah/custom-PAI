@@ -1,3 +1,4 @@
+import os from "node:os";
 import path from "node:path";
 
 const DEFAULT_APP_NAME = "Personal AI";
@@ -22,7 +23,7 @@ export const BRAND_ASSISTANT_NAME =
   readNonEmptyEnv("CLAWDIS_BRAND_ASSISTANT_NAME") ?? DEFAULT_ASSISTANT_NAME;
 
 export const BRAND_DEFAULT_WORKSPACE = path.join(
-  process.env.HOME ?? "~",
+  process.env.HOME ?? process.env.USERPROFILE ?? os.homedir(),
   readNonEmptyEnv("CLAWDIS_BRAND_WORKSPACE_DIR") ?? DEFAULT_WORKSPACE_DIR,
 );
 

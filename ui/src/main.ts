@@ -1,8 +1,6 @@
 import "./styles.css";
 import "./ui/app.ts";
 
-
-
-if ("serviceWorker" in navigator) {
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
   void navigator.serviceWorker.register("/sw.js");
 }
