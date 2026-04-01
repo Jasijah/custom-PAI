@@ -6,6 +6,7 @@ import path from "node:path";
 import type { Skill } from "@mariozechner/pi-coding-agent";
 import JSON5 from "json5";
 import type { MsgContext } from "../auto-reply/templating.js";
+import { resolveHomeDir } from "../utils.js";
 import { normalizeE164 } from "../utils.js";
 
 export type SessionScope = "per-sender" | "global";
@@ -81,7 +82,7 @@ export type SessionSkillSnapshot = {
 };
 
 export function resolveSessionTranscriptsDir(): string {
-  return path.join(os.homedir(), ".clawdis", "sessions");
+  return path.join(resolveHomeDir() ?? os.homedir(), ".clawdis", "sessions");
 }
 
 export function resolveDefaultSessionStorePath(): string {
@@ -97,8 +98,9 @@ export function resolveSessionTranscriptPath(sessionId: string): string {
 
 export function resolveStorePath(store?: string) {
   if (!store) return resolveDefaultSessionStorePath();
-  if (store.startsWith("~"))
-    return path.resolve(store.replace("~", os.homedir()));
+  if (store.startsWith("~")) {
+    return path.resolve(store.replace("~", resolveHomeDir() ?? os.homedir()));
+  }
   return path.resolve(store);
 }
 

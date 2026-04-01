@@ -109,14 +109,28 @@ export function resolveUserPath(input: string): string {
 export function resolveHomeDir(): string | undefined {
   const envHome = process.env.HOME?.trim();
   if (envHome) return envHome;
-  const envProfile = process.env.USERPROFILE?.trim();
-  if (envProfile) return envProfile;
   try {
     const home = os.homedir();
     return home?.trim() ? home : undefined;
   } catch {
+    const envProfile = process.env.USERPROFILE?.trim();
+    if (envProfile) return envProfile;
     return undefined;
   }
+}
+
+export function resolveConfigHomeDir(): string | undefined {
+  try {
+    const home = os.homedir();
+    if (home?.trim()) return home.trim();
+  } catch {
+    // fall through to env-based fallbacks
+  }
+  const envHome = process.env.HOME?.trim();
+  if (envHome) return envHome;
+  const envProfile = process.env.USERPROFILE?.trim();
+  if (envProfile) return envProfile;
+  return undefined;
 }
 
 export function shortenHomePath(input: string): string {
@@ -128,7 +142,7 @@ export function shortenHomePath(input: string): string {
   if (normalizedInput === normalizedHome) return "~";
   const rel = path.relative(normalizedHome, normalizedInput);
   if (rel && rel !== "." && !rel.startsWith("..") && !path.isAbsolute(rel)) {
-    return `~${path.sep}${rel}`;
+    return `~/${rel.split(path.sep).join("/")}`;
   }
   return input;
 }
@@ -141,7 +155,7 @@ export function shortenHomeInString(input: string): string {
 }
 
 // Fixed configuration root; can be branded via environment defaults.
-const resolvedConfigHome = resolveHomeDir() ?? os.homedir();
+const resolvedConfigHome = resolveConfigHomeDir() ?? os.homedir();
 export const CONFIG_DIR = getPathAdapterForInput(resolvedConfigHome).join(
   resolvedConfigHome,
   BRAND_DEFAULT_STATE_DIR,

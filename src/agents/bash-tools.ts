@@ -230,12 +230,22 @@ export function createBashTool(
       }
 
       if (stdinMode === "pipe") {
-        child = spawn(shell, [...shellArgs, params.command], {
-          cwd: workdir,
-          env,
-          detached: true,
-          stdio: ["pipe", "pipe", "pipe"],
-        });
+        if (process.platform === "win32") {
+          child = spawn(params.command, {
+            cwd: workdir,
+            env,
+            detached: false,
+            shell,
+            stdio: ["pipe", "pipe", "pipe"],
+          });
+        } else {
+          child = spawn(shell, [...shellArgs, params.command], {
+            cwd: workdir,
+            env,
+            detached: true,
+            stdio: ["pipe", "pipe", "pipe"],
+          });
+        }
       }
 
       if (warning) warnings.push(warning);
