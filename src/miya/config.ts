@@ -1,4 +1,4 @@
-import { getPathAdapterForInput } from "../platform/index.js";
+import { getPlatformPathAdapter, getPathAdapterForInput } from "../platform/index.js";
 
 export function isMiyaEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   const raw = env.MIYA_ENABLED?.trim().toLowerCase();
@@ -6,7 +6,10 @@ export function isMiyaEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
 }
 
 export function resolveMiyaBaseDir(workspaceDir: string): string {
-  const adapter = getPathAdapterForInput(workspaceDir);
+  const adapter =
+    /^[a-zA-Z]:[\\/]/.test(workspaceDir) || workspaceDir.includes("\\")
+      ? getPathAdapterForInput(workspaceDir)
+      : getPlatformPathAdapter("linux");
   const normalized = adapter.normalize(workspaceDir.trim());
   const safeBase = adapter.trimTrailingSeparator(normalized);
   return adapter.join(safeBase || normalized, "miya");

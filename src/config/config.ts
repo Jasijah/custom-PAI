@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { BRAND_DEFAULT_STATE_DIR } from "../branding.js";
 import { parseDurationMs } from "../cli/parse-duration.js";
+import { getPathAdapterForInput } from "../platform/index.js";
 
 /**
  * Nix mode detection: When CLAWDIS_NIX_MODE=1, the gateway is running under Nix.
@@ -628,6 +629,18 @@ export type ClawdisConfig = {
   gateway?: GatewayConfig;
 };
 
+function resolveConfigHomeDir(env: NodeJS.ProcessEnv = process.env): string {
+  const envHome = env.HOME?.trim();
+  if (envHome) return envHome;
+  const envProfile = env.USERPROFILE?.trim();
+  if (envProfile) return envProfile;
+  return os.homedir();
+}
+
+function joinConfigPath(base: string, leaf: string): string {
+  return getPathAdapterForInput(base).join(base, leaf).replace(/\\/g, "/");
+}
+
 /**
  * State directory for mutable data (sessions, logs, caches).
  * Can be overridden via CLAWDIS_STATE_DIR environment variable.
@@ -636,7 +649,7 @@ export type ClawdisConfig = {
 export const STATE_DIR_CLAWDIS =
   process.env.CLAWDIS_STATE_DIR ??
   process.env.PAI_STATE_DIR ??
-  path.join(os.homedir(), BRAND_DEFAULT_STATE_DIR);
+  joinConfigPath(resolveConfigHomeDir(), BRAND_DEFAULT_STATE_DIR);
 
 /**
  * Config file path (JSON5).
@@ -646,7 +659,7 @@ export const STATE_DIR_CLAWDIS =
 export const CONFIG_PATH_CLAWDIS =
   process.env.CLAWDIS_CONFIG_PATH ??
   process.env.PAI_CONFIG_PATH ??
-  path.join(STATE_DIR_CLAWDIS, "clawdis.json");
+  joinConfigPath(STATE_DIR_CLAWDIS, "clawdis.json");
 
 export const DEFAULT_GATEWAY_PORT = 18789;
 
@@ -1642,7 +1655,7 @@ export function parseConfigJson5(
 }
 
 function readTalkApiKeyFromProfile(): string | null {
-  const home = os.homedir();
+  const home = resolveConfigHomeDir();
   const candidates = [".profile", ".zprofile", ".zshrc", ".bashrc"].map(
     (name) => path.join(home, name),
   );

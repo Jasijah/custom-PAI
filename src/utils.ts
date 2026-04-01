@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { BRAND_DEFAULT_STATE_DIR } from "./branding.js";
+import { getPathAdapterForInput } from "./platform/index.js";
 import { logVerbose, shouldLogVerbose } from "./globals.js";
 
 export async function ensureDir(dir: string) {
@@ -140,4 +141,8 @@ export function shortenHomeInString(input: string): string {
 }
 
 // Fixed configuration root; can be branded via environment defaults.
-export const CONFIG_DIR = path.join(os.homedir(), BRAND_DEFAULT_STATE_DIR);
+const resolvedConfigHome = resolveHomeDir() ?? os.homedir();
+export const CONFIG_DIR = getPathAdapterForInput(resolvedConfigHome).join(
+  resolvedConfigHome,
+  BRAND_DEFAULT_STATE_DIR,
+);
