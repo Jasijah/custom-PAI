@@ -1,4 +1,5 @@
 const KEY = "clawdis.control.settings.v1";
+const BUILD_DRAFTS_KEY = "clawdis.control.build-drafts.v1";
 
 import type { ThemeMode } from "./theme";
 
@@ -7,6 +8,18 @@ export type UiSettings = {
   token: string;
   sessionKey: string;
   theme: ThemeMode;
+};
+
+export type BuildDraftRecord = {
+  id: string;
+  name: string;
+  prompt: string;
+  palette: "sunrise" | "ocean" | "forest" | "graphite";
+  layout: "dashboard" | "mobile" | "studio";
+  html: string;
+  css: string;
+  js: string;
+  updatedAt: number;
 };
 
 export function loadSettings(): UiSettings {
@@ -50,4 +63,19 @@ export function loadSettings(): UiSettings {
 
 export function saveSettings(next: UiSettings) {
   localStorage.setItem(KEY, JSON.stringify(next));
+}
+
+export function loadBuildDrafts(): BuildDraftRecord[] {
+  try {
+    const raw = localStorage.getItem(BUILD_DRAFTS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as BuildDraftRecord[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveBuildDrafts(next: BuildDraftRecord[]) {
+  localStorage.setItem(BUILD_DRAFTS_KEY, JSON.stringify(next));
 }

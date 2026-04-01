@@ -8,7 +8,7 @@ import {
   titleForTab,
   type Tab,
 } from "./navigation";
-import type { UiSettings } from "./storage";
+import type { BuildDraftRecord, UiSettings } from "./storage";
 import type { ThemeMode } from "./theme";
 import type { ThemeTransitionContext } from "./theme-transition";
 import type {
@@ -106,6 +106,11 @@ export type AppViewState = {
   buildTitle: string;
   buildPalette: "sunrise" | "ocean" | "forest" | "graphite";
   buildLayout: "dashboard" | "mobile" | "studio";
+  buildCode: { html: string; css: string; js: string };
+  buildDrafts: BuildDraftRecord[];
+  buildSelectedDraftId: string | null;
+  buildGenerating: boolean;
+  buildStatus: string | null;
   cognitive: CognitiveState;
   memoryQuery: string;
   voiceListening: boolean;
@@ -188,6 +193,12 @@ export type AppViewState = {
   handleWhatsAppLogout: () => Promise<void>;
   handleTelegramSave: () => Promise<void>;
   handleSendChat: () => Promise<void>;
+  handleBuildGenerate: () => Promise<void>;
+  handleBuildSaveDraft: () => void;
+  handleBuildExport: () => void;
+  handleBuildSelectDraft: (id: string) => void;
+  handleBuildNewDraft: () => void;
+  handleBuildDeleteDraft: (id: string) => void;
   handlePermission: (scope: PermissionScope, enabled: boolean, duration: GrantDuration) => void;
   handleMemoryCreate: (input: {
     title: string;
@@ -467,10 +478,22 @@ export function renderApp(state: AppViewState) {
               prompt: state.buildPrompt,
               palette: state.buildPalette,
               layout: state.buildLayout,
+              code: state.buildCode,
+              drafts: state.buildDrafts,
+              selectedDraftId: state.buildSelectedDraftId,
+              generating: state.buildGenerating,
+              status: state.buildStatus,
               onTitleChange: (next) => (state.buildTitle = next),
               onPromptChange: (next) => (state.buildPrompt = next),
               onPaletteChange: (next) => (state.buildPalette = next),
               onLayoutChange: (next) => (state.buildLayout = next),
+              onCodeChange: (kind, next) => (state.buildCode = { ...state.buildCode, [kind]: next }),
+              onGenerate: () => state.handleBuildGenerate(),
+              onSaveDraft: () => state.handleBuildSaveDraft(),
+              onExport: () => state.handleBuildExport(),
+              onSelectDraft: (id) => state.handleBuildSelectDraft(id),
+              onNewDraft: () => state.handleBuildNewDraft(),
+              onDeleteDraft: (id) => state.handleBuildDeleteDraft(id),
             })
           : nothing}
 

@@ -1,21 +1,37 @@
-import { html } from "lit";
+import { html, nothing } from "lit";
+
+import type { BuildDraftRecord } from "../storage";
+
+export type BuildPalette = "sunrise" | "ocean" | "forest" | "graphite";
+export type BuildLayout = "dashboard" | "mobile" | "studio";
+
+export type BuildCode = {
+  html: string;
+  css: string;
+  js: string;
+};
 
 export type BuildProps = {
   title: string;
   prompt: string;
-  palette: "sunrise" | "ocean" | "forest" | "graphite";
-  layout: "dashboard" | "mobile" | "studio";
+  palette: BuildPalette;
+  layout: BuildLayout;
+  code: BuildCode;
+  drafts: BuildDraftRecord[];
+  selectedDraftId: string | null;
+  generating: boolean;
+  status: string | null;
   onTitleChange: (next: string) => void;
   onPromptChange: (next: string) => void;
-  onPaletteChange: (next: BuildProps["palette"]) => void;
-  onLayoutChange: (next: BuildProps["layout"]) => void;
-};
-
-type BuildDraft = {
-  html: string;
-  css: string;
-  js: string;
-  preview: string;
+  onPaletteChange: (next: BuildPalette) => void;
+  onLayoutChange: (next: BuildLayout) => void;
+  onCodeChange: (kind: keyof BuildCode, next: string) => void;
+  onGenerate: () => void;
+  onSaveDraft: () => void;
+  onExport: () => void;
+  onSelectDraft: (id: string) => void;
+  onNewDraft: () => void;
+  onDeleteDraft: (id: string) => void;
 };
 
 const QUICK_IDEAS = [
@@ -26,29 +42,54 @@ const QUICK_IDEAS = [
 ];
 
 export function renderBuild(props: BuildProps) {
-  const draft = buildDraftFromPrompt(props);
+  const preview = buildPreviewDocument(props.code);
 
   return html`
     <section class="builder-shell">
       <div class="builder-hero">
         <div>
           <div class="builder-hero__eyebrow">Studio</div>
-          <h2>Shape app ideas and preview them live.</h2>
-          <p>Describe the experience you want, tune the feel, and watch the concept update inside the UI.</p>
+          <h2>Shape app ideas, generate them with Gemini, and preview them live.</h2>
+          <p>Use a short brief, tune the direction, then refine the code directly without leaving Clawdis.</p>
         </div>
         <div class="builder-hero__meta">
           <div class="hero-stat">
             <div class="hero-stat__label">Mode</div>
-            <div class="hero-stat__value">Live preview</div>
-            <div class="hero-stat__sub">Updates inside the assistant interface</div>
+            <div class="hero-stat__value">${props.generating ? "Generating" : "Live preview"}</div>
+            <div class="hero-stat__sub">${props.status ?? "Saved drafts, editable code, and one-click export."}</div>
           </div>
         </div>
       </div>
 
-      <div class="builder-workspace">
+      <div class="builder-workspace builder-workspace--wide">
+        <aside class="builder-drafts">
+          <div class="row" style="justify-content: space-between;">
+            <div>
+              <div class="section-title">Drafts</div>
+              <div class="section-sub">Keep multiple ideas and jump between them.</div>
+            </div>
+            <button class="btn" @click=${props.onNewDraft}>New</button>
+          </div>
+          <div class="builder-draft-list">
+            ${props.drafts.length
+              ? props.drafts.map(
+                  (draft) => html`
+                    <div class="builder-draft-card ${draft.id === props.selectedDraftId ? "active" : ""}">
+                      <button class="builder-draft-card__button" @click=${() => props.onSelectDraft(draft.id)}>
+                        <span class="builder-draft-card__title">${draft.name}</span>
+                        <span class="builder-draft-card__sub">${new Date(draft.updatedAt).toLocaleString()}</span>
+                      </button>
+                      <button class="builder-draft-card__delete" @click=${() => props.onDeleteDraft(draft.id)} aria-label="Delete draft">×</button>
+                    </div>
+                  `,
+                )
+              : html`<div class="muted">No drafts yet. Generate one or save your current work.</div>`}
+          </div>
+        </aside>
+
         <section class="builder-panel">
           <div class="section-title">Prompt</div>
-          <div class="section-sub">Describe what you want to build. The studio will shape a polished starter for you.</div>
+          <div class="section-sub">Describe what you want to build. Gemini will return a real starter interface with HTML, CSS, and JS.</div>
 
           <label class="field" style="margin-top: 16px;">
             <span>App name</span>
@@ -81,7 +122,7 @@ export function renderBuild(props: BuildProps) {
               <select
                 .value=${props.palette}
                 @change=${(event: Event) =>
-                  props.onPaletteChange((event.target as HTMLSelectElement).value as BuildProps["palette"])}
+                  props.onPaletteChange((event.target as HTMLSelectElement).value as BuildPalette)}
               >
                 <option value="sunrise">Sunrise</option>
                 <option value="ocean">Ocean</option>
@@ -94,7 +135,7 @@ export function renderBuild(props: BuildProps) {
               <select
                 .value=${props.layout}
                 @change=${(event: Event) =>
-                  props.onLayoutChange((event.target as HTMLSelectElement).value as BuildProps["layout"])}
+                  props.onLayoutChange((event.target as HTMLSelectElement).value as BuildLayout)}
               >
                 <option value="dashboard">Dashboard</option>
                 <option value="mobile">Mobile app</option>
@@ -102,13 +143,21 @@ export function renderBuild(props: BuildProps) {
               </select>
             </label>
           </div>
+
+          <div class="builder-actions">
+            <button class="btn primary" ?disabled=${props.generating} @click=${props.onGenerate}>
+              ${props.generating ? "Generating..." : "Generate with Gemini"}
+            </button>
+            <button class="btn" @click=${props.onSaveDraft}>Save draft</button>
+            <button class="btn" @click=${props.onExport}>Export</button>
+          </div>
         </section>
 
         <section class="builder-preview">
           <div class="builder-preview__header">
             <div>
               <div class="section-title">Preview</div>
-              <div class="section-sub">A live concept view inspired by Gemini and AI Studio workflows.</div>
+              <div class="section-sub">Live render of your current code.</div>
             </div>
             <div class="builder-preview__dots">
               <span></span><span></span><span></span>
@@ -117,30 +166,37 @@ export function renderBuild(props: BuildProps) {
           <iframe
             class="builder-preview__frame"
             title="App preview"
-            srcdoc=${draft.preview}
+            srcdoc=${preview}
           ></iframe>
         </section>
       </div>
 
       <section class="builder-code">
-        <div class="builder-code__block">
-          <div class="section-title">HTML</div>
-          <pre class="code-block">${draft.html}</pre>
-        </div>
-        <div class="builder-code__block">
-          <div class="section-title">CSS</div>
-          <pre class="code-block">${draft.css}</pre>
-        </div>
-        <div class="builder-code__block">
-          <div class="section-title">JS</div>
-          <pre class="code-block">${draft.js}</pre>
-        </div>
+        <label class="builder-code__block field">
+          <span>HTML</span>
+          <textarea .value=${props.code.html} @input=${(e: Event) => props.onCodeChange("html", (e.target as HTMLTextAreaElement).value)} rows="18"></textarea>
+        </label>
+        <label class="builder-code__block field">
+          <span>CSS</span>
+          <textarea .value=${props.code.css} @input=${(e: Event) => props.onCodeChange("css", (e.target as HTMLTextAreaElement).value)} rows="18"></textarea>
+        </label>
+        <label class="builder-code__block field">
+          <span>JS</span>
+          <textarea .value=${props.code.js} @input=${(e: Event) => props.onCodeChange("js", (e.target as HTMLTextAreaElement).value)} rows="18"></textarea>
+        </label>
       </section>
+
+      ${props.status ? html`<section class="callout">${props.status}</section>` : nothing}
     </section>
   `;
 }
 
-function buildDraftFromPrompt(props: BuildProps): BuildDraft {
+export function createStarterBuild(props: {
+  title: string;
+  prompt: string;
+  palette: BuildPalette;
+  layout: BuildLayout;
+}): BuildCode {
   const title = props.title.trim() || "New App";
   const summary = summarizePrompt(props.prompt);
   const palette = paletteFor(props.palette);
@@ -262,21 +318,56 @@ body {
 
 console.log("Builder preview ready", state);`;
 
-  const preview = `<!doctype html>
+  return { html, css, js };
+}
+
+export function buildPreviewDocument(code: BuildCode) {
+  return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${escapeHtml(title)}</title>
-    <style>${css}</style>
+    <style>${code.css}</style>
   </head>
   <body>
-    ${html}
-    <script>${js}<\/script>
+    ${code.html}
+    <script>${code.js}<\/script>
   </body>
 </html>`;
+}
 
-  return { html, css, js, preview };
+export function parseGeneratedBuildResponse(raw: string): {
+  title?: string;
+  html?: string;
+  css?: string;
+  js?: string;
+} | null {
+  const cleaned = raw.trim();
+  const direct = safeParseJson(cleaned);
+  if (direct) return direct;
+
+  const fenced = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) {
+    const parsed = safeParseJson(fenced[1].trim());
+    if (parsed) return parsed;
+  }
+
+  const braceStart = cleaned.indexOf("{");
+  const braceEnd = cleaned.lastIndexOf("}");
+  if (braceStart >= 0 && braceEnd > braceStart) {
+    const parsed = safeParseJson(cleaned.slice(braceStart, braceEnd + 1));
+    if (parsed) return parsed;
+  }
+
+  return null;
+}
+
+function safeParseJson(raw: string) {
+  try {
+    return JSON.parse(raw) as { title?: string; html?: string; css?: string; js?: string };
+  } catch {
+    return null;
+  }
 }
 
 function summarizePrompt(prompt: string) {
@@ -294,7 +385,7 @@ function cardCopy(summary: string) {
   };
 }
 
-function labelForLayout(layout: BuildProps["layout"]) {
+function labelForLayout(layout: BuildLayout) {
   switch (layout) {
     case "mobile":
       return "Mobile concept";
@@ -305,7 +396,7 @@ function labelForLayout(layout: BuildProps["layout"]) {
   }
 }
 
-function paletteFor(palette: BuildProps["palette"]) {
+function paletteFor(palette: BuildPalette) {
   switch (palette) {
     case "ocean":
       return {

@@ -2,9 +2,21 @@ import { LitElement, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 
 import { GatewayBrowserClient, type GatewayEventFrame, type GatewayHelloOk } from "./gateway";
-import { loadSettings, saveSettings, type UiSettings } from "./storage";
+import {
+  loadBuildDrafts,
+  loadSettings,
+  saveBuildDrafts,
+  saveSettings,
+  type BuildDraftRecord,
+  type UiSettings,
+} from "./storage";
 import { renderApp } from "./app-render";
 import { normalizePath, pathForTab, tabFromPath, type Tab } from "./navigation";
+import {
+  createStarterBuild,
+  parseGeneratedBuildResponse,
+  type BuildCode,
+} from "./views/build";
 import {
   resolveTheme,
   type ResolvedTheme,
@@ -81,6 +93,7 @@ import {
   type VoicePrefs,
 } from "./cognitive-store";
 import { synthesizeSpeech } from "./tts";
+import { generateUUID } from "./uuid";
 
 type EventLogEntry = {
   ts: number;
@@ -135,6 +148,16 @@ export class ClawdisApp extends LitElement {
   @state() buildTitle = "Daily Planner";
   @state() buildPalette: "sunrise" | "ocean" | "forest" | "graphite" = "sunrise";
   @state() buildLayout: "dashboard" | "mobile" | "studio" = "dashboard";
+  @state() buildCode: BuildCode = createStarterBuild({
+    title: "Daily Planner",
+    prompt: "Create a warm daily planner app with a focus timer, mood check-in, and a progress overview.",
+    palette: "sunrise",
+    layout: "dashboard",
+  });
+  @state() buildDrafts: BuildDraftRecord[] = loadBuildDrafts();
+  @state() buildSelectedDraftId: string | null = null;
+  @state() buildGenerating = false;
+  @state() buildStatus: string | null = null;
 
   @state() cognitive: CognitiveState = loadCognitiveState();
   @state() memoryQuery = "";
@@ -687,6 +710,162 @@ export class ClawdisApp extends LitElement {
     await loadProviders(this, true);
   }
 
+  async handleBuildGenerate() {
+    if (!this.client || !this.connected) {
+      this.buildStatus = "Connect to the gateway before generating with Gemini.";
+      return;
+    }
+
+    this.buildGenerating = true;
+    this.buildStatus = "Asking Gemini to generate app code...";
+    const sessionKey = "__builder__";
+    const beforeHistory = (await this.client.request("chat.history", {
+      sessionKey,
+      limit: 50,
+    }).catch(() => ({ messages: [] }))) as { messages?: unknown[] };
+    const beforeCount = Array.isArray(beforeHistory.messages) ? beforeHistory.messages.length : 0;
+
+    const prompt = [
+      "You are generating a lightweight web app prototype.",
+      `App name: ${this.buildTitle || "New App"}`,
+      `Palette: ${this.buildPalette}`,
+      `Layout: ${this.buildLayout}`,
+      `Prompt: ${this.buildPrompt}`,
+      'Return strict JSON only with keys "title", "html", "css", and "js".',
+      "The html should be only body markup. The css should be complete. The js should be browser-safe and optional.",
+      "Do not wrap the JSON in markdown.",
+    ].join("\n");
+
+    try {
+      await this.client.request("chat.send", {
+        sessionKey,
+        message: prompt,
+        deliver: false,
+        idempotencyKey: generateUUID(),
+      });
+
+      let assistantText: string | null = null;
+      for (let attempt = 0; attempt < 18; attempt += 1) {
+        await delay(1200);
+        const history = (await this.client.request("chat.history", {
+          sessionKey,
+          limit: 50,
+        })) as { messages?: unknown[] };
+        const messages = Array.isArray(history.messages) ? history.messages : [];
+        if (messages.length <= beforeCount) continue;
+        const assistant = [...messages]
+          .reverse()
+          .find((entry) => (entry as Record<string, unknown>).role === "assistant");
+        assistantText = extractMessageText(assistant);
+        if (assistantText) break;
+      }
+
+      if (!assistantText) {
+        this.buildStatus = "Gemini did not return app code yet. Try again in a moment.";
+        return;
+      }
+
+      const parsed = parseGeneratedBuildResponse(assistantText);
+      if (!parsed?.html || !parsed?.css) {
+        this.buildStatus = "Gemini responded, but the code could not be parsed cleanly. You can still edit the current draft.";
+        return;
+      }
+
+      this.buildTitle = parsed.title?.trim() || this.buildTitle;
+      this.buildCode = {
+        html: parsed.html,
+        css: parsed.css,
+        js: parsed.js ?? "",
+      };
+      this.buildStatus = "Gemini generated a fresh app concept. You can now edit, save, or export it.";
+    } catch (err) {
+      this.buildStatus = `Build generation failed: ${String(err)}`;
+    } finally {
+      this.buildGenerating = false;
+    }
+  }
+
+  handleBuildSaveDraft() {
+    const id = this.buildSelectedDraftId ?? generateUUID();
+    const next: BuildDraftRecord = {
+      id,
+      name: this.buildTitle.trim() || "Untitled app",
+      prompt: this.buildPrompt,
+      palette: this.buildPalette,
+      layout: this.buildLayout,
+      html: this.buildCode.html,
+      css: this.buildCode.css,
+      js: this.buildCode.js,
+      updatedAt: Date.now(),
+    };
+    const remaining = this.buildDrafts.filter((draft) => draft.id !== id);
+    this.buildDrafts = [next, ...remaining].sort((a, b) => b.updatedAt - a.updatedAt);
+    this.buildSelectedDraftId = id;
+    saveBuildDrafts(this.buildDrafts);
+    this.buildStatus = "Draft saved locally.";
+  }
+
+  handleBuildSelectDraft(id: string) {
+    const draft = this.buildDrafts.find((entry) => entry.id === id);
+    if (!draft) return;
+    this.buildSelectedDraftId = draft.id;
+    this.buildTitle = draft.name;
+    this.buildPrompt = draft.prompt;
+    this.buildPalette = draft.palette;
+    this.buildLayout = draft.layout;
+    this.buildCode = {
+      html: draft.html,
+      css: draft.css,
+      js: draft.js,
+    };
+    this.buildStatus = `Loaded "${draft.name}".`;
+  }
+
+  handleBuildDeleteDraft(id: string) {
+    this.buildDrafts = this.buildDrafts.filter((entry) => entry.id !== id);
+    if (this.buildSelectedDraftId === id) this.buildSelectedDraftId = null;
+    saveBuildDrafts(this.buildDrafts);
+    this.buildStatus = "Draft removed.";
+  }
+
+  handleBuildNewDraft() {
+    this.buildSelectedDraftId = null;
+    this.buildTitle = "New App";
+    this.buildPrompt = "Create a polished app concept with a welcoming first screen and a clear next step.";
+    this.buildPalette = "sunrise";
+    this.buildLayout = "dashboard";
+    this.buildCode = createStarterBuild({
+      title: this.buildTitle,
+      prompt: this.buildPrompt,
+      palette: this.buildPalette,
+      layout: this.buildLayout,
+    });
+    this.buildStatus = "Started a fresh draft.";
+  }
+
+  handleBuildExport() {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    const slug = (this.buildTitle || "app").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "app";
+    const bundle = [
+      `<!-- ${this.buildTitle} -->`,
+      "<style>",
+      this.buildCode.css,
+      "</style>",
+      this.buildCode.html,
+      "<script>",
+      this.buildCode.js,
+      "</script>",
+    ].join("\n");
+    const blob = new Blob([bundle], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${slug}.html`;
+    link.click();
+    URL.revokeObjectURL(url);
+    this.buildStatus = "Exported as a standalone HTML file.";
+  }
+
 
   private persistCognitive(next: CognitiveState) {
     this.cognitive = next;
@@ -805,4 +984,25 @@ export class ClawdisApp extends LitElement {
   render() {
     return renderApp(this);
   }
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function extractMessageText(message: unknown): string | null {
+  const row = message as Record<string, unknown> | null;
+  if (!row) return null;
+  const content = row.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    const parts = content
+      .map((item) => {
+        const chunk = item as Record<string, unknown>;
+        return chunk.type === "text" && typeof chunk.text === "string" ? chunk.text : null;
+      })
+      .filter((value): value is string => typeof value === "string");
+    if (parts.length) return parts.join("\n");
+  }
+  return typeof row.text === "string" ? row.text : null;
 }
