@@ -2,9 +2,9 @@ export const TAB_GROUPS = [
   { label: "Daily", tabs: ["chat", "build", "dashboard", "memory", "agents"] },
   {
     label: "Home",
-    tabs: ["overview", "connections", "sessions", "instances", "cron"],
+    tabs: ["overview", "config", "connections", "sessions", "instances", "cron"],
   },
-  { label: "Advanced", tabs: ["trust", "skills", "nodes", "economy", "config", "debug"] },
+  { label: "Advanced", tabs: ["trust", "skills", "nodes", "economy", "debug"] },
 ] as const;
 
 export type Tab =
@@ -40,13 +40,14 @@ const TAB_PATHS: Record<Tab, string> = {
   trust: "/trust",
   dashboard: "/dashboard",
   economy: "/economy",
-  config: "/config",
+  config: "/core",
   debug: "/debug",
 };
 
 const PATH_TO_TAB = new Map(
   Object.entries(TAB_PATHS).map(([tab, path]) => [path, tab as Tab]),
 );
+PATH_TO_TAB.set("/config", "config");
 
 function normalizeBasePath(basePath: string): string {
   if (!basePath) return "";
@@ -120,7 +121,7 @@ export function titleForTab(tab: Tab) {
     case "economy":
       return "Budget";
     case "config":
-      return "Settings";
+      return "Core";
     case "debug":
       return "Developer Tools";
     default:
@@ -159,7 +160,7 @@ export function subtitleForTab(tab: Tab) {
     case "economy":
       return "Track how your assistant budget is allocated.";
     case "config":
-      return "Review and edit local configuration safely.";
+      return "Personalize your assistant's name, tone, and how it speaks to you.";
     case "debug":
       return "Raw snapshots, logs, and manual tools for troubleshooting.";
     default:

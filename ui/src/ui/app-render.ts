@@ -39,8 +39,8 @@ import type {
   TelegramForm,
 } from "./ui-types";
 import { renderChat } from "./views/chat";
+import { renderCore } from "./views/core";
 import { renderBuild } from "./views/build";
-import { renderConfig } from "./views/config";
 import { renderDashboard } from "./views/dashboard";
 import { renderConnections } from "./views/connections";
 import { renderCron } from "./views/cron";
@@ -103,6 +103,7 @@ export type AppViewState = {
   chatRunId: string | null;
   chatThinkingLevel: string | null;
   buildPrompt: string;
+  buildRefinePrompt: string;
   buildTitle: string;
   buildPalette: "sunrise" | "ocean" | "forest" | "graphite";
   buildLayout: "dashboard" | "mobile" | "studio";
@@ -199,6 +200,7 @@ export type AppViewState = {
   handleTelegramSave: () => Promise<void>;
   handleSendChat: () => Promise<void>;
   handleBuildGenerate: () => Promise<void>;
+  handleBuildRefine: () => Promise<void>;
   handleBuildSaveDraft: () => void;
   handleBuildExport: () => void;
   handleBuildScaffold: () => Promise<void>;
@@ -251,12 +253,12 @@ export function renderApp(state: AppViewState) {
 
   return html`
     <div class="shell">
-      <header class="topbar">
-        <div class="brand brand-rich">
-          <div class="brand-kicker">Everyday assistant</div>
-          <div class="brand-title">Clawdis</div>
-          <div class="brand-sub">One place for conversations, connected apps, and your daily rhythm.</div>
-        </div>
+        <header class="topbar">
+          <div class="brand brand-rich">
+            <div class="brand-kicker">Everyday assistant</div>
+            <div class="brand-title">${state.settings.brandName || state.settings.assistantName || "Miya"}</div>
+            <div class="brand-sub">One place for conversations, connected apps, and your daily rhythm.</div>
+          </div>
         <div class="topbar-status">
           <button class="quick-search" @click=${() => state.openPalette()} aria-label="Open command palette">
             <span>Search or jump</span>
@@ -439,9 +441,11 @@ export function renderApp(state: AppViewState) {
             })
           : nothing}
 
-        ${state.tab === "chat"
-          ? renderChat({
-              sessionKey: state.sessionKey,
+          ${state.tab === "chat"
+            ? renderChat({
+                assistantName: state.settings.assistantName || state.settings.brandName || "Miya",
+                callMe: state.settings.callMe,
+                sessionKey: state.sessionKey,
               onSessionKeyChange: (next) => {
                 state.sessionKey = next;
                 state.chatMessage = "";
@@ -478,21 +482,25 @@ export function renderApp(state: AppViewState) {
             })
           : nothing}
 
-        ${state.tab === "build"
-          ? renderBuild({
-              title: state.buildTitle,
-              prompt: state.buildPrompt,
-              palette: state.buildPalette,
+          ${state.tab === "build"
+            ? renderBuild({
+                brandName: state.settings.brandName || state.settings.assistantName || "Miya",
+                assistantName: state.settings.assistantName || state.settings.brandName || "Miya",
+                title: state.buildTitle,
+                prompt: state.buildPrompt,
+                refinePrompt: state.buildRefinePrompt,
+                palette: state.buildPalette,
               layout: state.buildLayout,
               code: state.buildCode,
               activeScreen: state.buildActiveScreen,
               drafts: state.buildDrafts,
               selectedDraftId: state.buildSelectedDraftId,
               generating: state.buildGenerating,
-              status: state.buildStatus,
-              onTitleChange: (next) => (state.buildTitle = next),
-              onPromptChange: (next) => (state.buildPrompt = next),
-              onPaletteChange: (next) => (state.buildPalette = next),
+                status: state.buildStatus,
+                onTitleChange: (next) => (state.buildTitle = next),
+                onPromptChange: (next) => (state.buildPrompt = next),
+                onRefinePromptChange: (next) => (state.buildRefinePrompt = next),
+                onPaletteChange: (next) => (state.buildPalette = next),
               onLayoutChange: (next) => (state.buildLayout = next),
               onScreenChange: (next) => (state.buildActiveScreen = next),
               onCodeChange: (kind, next, screen) => {
@@ -504,9 +512,10 @@ export function renderApp(state: AppViewState) {
                   return;
                 }
                 state.buildCode = { ...state.buildCode, [kind]: next };
-              },
-              onGenerate: () => state.handleBuildGenerate(),
-              onSaveDraft: () => state.handleBuildSaveDraft(),
+                },
+                onGenerate: () => state.handleBuildGenerate(),
+                onRefine: () => state.handleBuildRefine(),
+                onSaveDraft: () => state.handleBuildSaveDraft(),
               onExport: () => state.handleBuildExport(),
               onScaffold: () => state.handleBuildScaffold(),
               onSelectDraft: (id) => state.handleBuildSelectDraft(id),
@@ -551,17 +560,21 @@ export function renderApp(state: AppViewState) {
             })
           : nothing}
 
-        ${state.tab === "config"
-          ? renderConfig({
-              raw: state.configRaw,
-              valid: state.configValid,
-              issues: state.configIssues,
-              loading: state.configLoading,
-              saving: state.configSaving,
-              connected: state.connected,
-              onRawChange: (next) => (state.configRaw = next),
-              onReload: () => loadConfig(state),
-              onSave: () => saveConfig(state),
+          ${state.tab === "config"
+            ? renderCore({
+                settings: state.settings,
+                password: state.password,
+                raw: state.configRaw,
+                valid: state.configValid,
+                issues: state.configIssues,
+                loading: state.configLoading,
+                saving: state.configSaving,
+                connected: state.connected,
+                onSettingsChange: (next) => state.applySettings(next),
+                onPasswordChange: (next) => (state.password = next),
+                onRawChange: (next) => (state.configRaw = next),
+                onReload: () => loadConfig(state),
+                onSave: () => saveConfig(state),
             })
           : nothing}
 
@@ -644,6 +657,8 @@ function pageKickerForTab(tab: Tab) {
       return "History";
     case "dashboard":
       return "Wellbeing";
+    case "config":
+      return "Identity";
     case "debug":
       return "Advanced";
     default:
@@ -682,7 +697,7 @@ function renderCommandPalette(
             @input=${(event: Event) => {
               state.paletteQuery = (event.target as HTMLInputElement).value;
             }}
-            placeholder="Search pages, settings, and workspaces"
+            placeholder="Search pages, core settings, and workspaces"
           />
         </div>
         <div class="palette-results">

@@ -8,6 +8,10 @@ export type UiSettings = {
   token: string;
   sessionKey: string;
   theme: ThemeMode;
+  brandName: string;
+  assistantName: string;
+  callMe: string;
+  personality: string;
 };
 
 export type BuildDraftRecord = {
@@ -37,6 +41,11 @@ export function loadSettings(): UiSettings {
     token: "",
     sessionKey: "main",
     theme: "system",
+    brandName: "Miya",
+    assistantName: "Miya",
+    callMe: "",
+    personality:
+      "Warm, capable, calm, and everyday-friendly. Helpful without sounding robotic or overly technical.",
   };
 
   try {
@@ -59,6 +68,20 @@ export function loadSettings(): UiSettings {
         parsed.theme === "system"
           ? parsed.theme
           : defaults.theme,
+      brandName:
+        typeof parsed.brandName === "string" && parsed.brandName.trim()
+          ? parsed.brandName.trim()
+          : defaults.brandName,
+      assistantName:
+        typeof parsed.assistantName === "string" && parsed.assistantName.trim()
+          ? parsed.assistantName.trim()
+          : defaults.assistantName,
+      callMe:
+        typeof parsed.callMe === "string" ? parsed.callMe : defaults.callMe,
+      personality:
+        typeof parsed.personality === "string" && parsed.personality.trim()
+          ? parsed.personality.trim()
+          : defaults.personality,
     };
   } catch {
     return defaults;

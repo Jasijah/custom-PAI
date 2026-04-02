@@ -15,8 +15,11 @@ export type BuildCode = {
 };
 
 export type BuildProps = {
+  brandName: string;
+  assistantName: string;
   title: string;
   prompt: string;
+  refinePrompt: string;
   palette: BuildPalette;
   layout: BuildLayout;
   code: BuildCode;
@@ -27,11 +30,13 @@ export type BuildProps = {
   status: string | null;
   onTitleChange: (next: string) => void;
   onPromptChange: (next: string) => void;
+  onRefinePromptChange: (next: string) => void;
   onPaletteChange: (next: BuildPalette) => void;
   onLayoutChange: (next: BuildLayout) => void;
   onScreenChange: (next: BuildScreenId) => void;
   onCodeChange: (kind: "screen" | "css" | "js", next: string, screen?: BuildScreenId) => void;
   onGenerate: () => void;
+  onRefine: () => void;
   onSaveDraft: () => void;
   onExport: () => void;
   onScaffold: () => void;
@@ -47,6 +52,13 @@ const QUICK_IDEAS = [
   "A kid-friendly homework dashboard",
 ];
 
+const QUICK_REFINES = [
+  "Make it feel more premium",
+  "Turn this into a mobile-first app",
+  "Make the onboarding softer and simpler",
+  "Reduce the visual clutter and increase clarity",
+];
+
 const SCREEN_ORDER: BuildScreenId[] = ["home", "details", "settings"];
 
 export function renderBuild(props: BuildProps) {
@@ -59,7 +71,7 @@ export function renderBuild(props: BuildProps) {
         <div>
           <div class="builder-hero__eyebrow">Studio</div>
           <h2>Shape app ideas, generate multi-screen concepts, and preview them live.</h2>
-          <p>Use a short brief, tune the direction, then refine each screen directly without leaving Clawdis.</p>
+          <p>Use a short brief, tune the direction, then refine each screen directly without leaving ${props.brandName}.</p>
         </div>
         <div class="builder-hero__meta">
           <div class="hero-stat">
@@ -157,9 +169,26 @@ export function renderBuild(props: BuildProps) {
             <button class="btn primary" ?disabled=${props.generating} @click=${props.onGenerate}>
               ${props.generating ? "Generating..." : "Generate with Gemini"}
             </button>
+            <button class="btn" ?disabled=${props.generating} @click=${props.onRefine}>Refine current draft</button>
             <button class="btn" @click=${props.onSaveDraft}>Save draft</button>
             <button class="btn" @click=${props.onExport}>Structured export</button>
             <button class="btn" @click=${props.onScaffold}>Create repo app</button>
+          </div>
+
+          <label class="field" style="margin-top: 16px;">
+            <span>Refine what you already have</span>
+            <textarea
+              .value=${props.refinePrompt}
+              @input=${(event: Event) => props.onRefinePromptChange((event.target as HTMLTextAreaElement).value)}
+              placeholder=${`Try “make it more premium” or “turn this into a mobile-first app for ${props.assistantName}.”`}
+              rows="4"
+            ></textarea>
+          </label>
+
+          <div class="builder-chip-row">
+            ${QUICK_REFINES.map(
+              (idea) => html`<button class="chip action" @click=${() => props.onRefinePromptChange(idea)}>${idea}</button>`,
+            )}
           </div>
         </section>
 

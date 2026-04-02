@@ -330,6 +330,36 @@
   color: var(--danger);
 }
 
+.core-preview {
+  display: grid;
+  gap: 8px;
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid var(--border-strong);
+  background:
+    radial-gradient(circle at top right, rgba(255, 232, 179, 0.18), transparent 32%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.06), transparent 70%),
+    var(--panel-strong);
+}
+
+.core-preview__kicker {
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.core-preview__headline {
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  line-height: 0.96;
+}
+
+.core-preview__body {
+  color: var(--muted);
+  max-width: 42ch;
+}
+
 .code-block {
   font-family: var(--mono);
   font-size: 12px;

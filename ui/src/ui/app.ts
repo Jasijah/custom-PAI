@@ -147,6 +147,7 @@ export class ClawdisApp extends LitElement {
   @state() chatRunId: string | null = null;
   @state() chatThinkingLevel: string | null = null;
   @state() buildPrompt = "Create a warm daily planner app with a focus timer, mood check-in, and a progress overview.";
+  @state() buildRefinePrompt = "Make it feel more premium without making it harder to use.";
   @state() buildTitle = "Daily Planner";
   @state() buildPalette: "sunrise" | "ocean" | "forest" | "graphite" = "sunrise";
   @state() buildLayout: "dashboard" | "mobile" | "studio" = "dashboard";
@@ -355,7 +356,11 @@ export class ClawdisApp extends LitElement {
         this.hello = hello;
         this.applySnapshot(hello);
         if (this.cognitive.voice.announceOnline) {
-          void this.speak("Personal AI is online and ready.");
+          const assistantName =
+            this.settings.assistantName.trim() ||
+            this.settings.brandName.trim() ||
+            "Miya";
+          void this.speak(`${assistantName} is online and ready.`);
         }
         void loadNodes(this, { quiet: true });
         void this.refreshActiveTab();
@@ -713,6 +718,82 @@ export class ClawdisApp extends LitElement {
     await loadProviders(this, true);
   }
 
+  private buildStudioIdentityContext() {
+    const brandName = this.settings.brandName.trim() || "Miya";
+    const assistantName = this.settings.assistantName.trim() || brandName;
+    const callMe = this.settings.callMe.trim() || "the user";
+    const personality =
+      this.settings.personality.trim() ||
+      "Warm, capable, calm, and everyday-friendly.";
+    return { brandName, assistantName, callMe, personality };
+  }
+
+  private async requestBuilderResponse(prompt: string) {
+    if (!this.client || !this.connected) {
+      throw new Error("Connect to the gateway before generating with Gemini.");
+    }
+    const sessionKey = "__builder__";
+    const beforeHistory = (await this.client.request("chat.history", {
+      sessionKey,
+      limit: 50,
+    }).catch(() => ({ messages: [] }))) as { messages?: unknown[] };
+    const beforeCount = Array.isArray(beforeHistory.messages)
+      ? beforeHistory.messages.length
+      : 0;
+
+    await this.client.request("chat.send", {
+      sessionKey,
+      message: prompt,
+      deliver: false,
+      idempotencyKey: generateUUID(),
+    });
+
+    for (let attempt = 0; attempt < 18; attempt += 1) {
+      await delay(1200);
+      const history = (await this.client.request("chat.history", {
+        sessionKey,
+        limit: 50,
+      })) as { messages?: unknown[] };
+      const messages = Array.isArray(history.messages) ? history.messages : [];
+      if (messages.length <= beforeCount) continue;
+      const assistant = [...messages]
+        .reverse()
+        .find((entry) => (entry as Record<string, unknown>).role === "assistant");
+      const assistantText = extractMessageText(assistant);
+      if (assistantText) return assistantText;
+    }
+
+    return null;
+  }
+
+  private applyGeneratedBuild(assistantText: string) {
+    const parsed = parseGeneratedBuildResponse(assistantText);
+    const nextScreens = parsed?.screens ?? null;
+    if ((!nextScreens?.home && !parsed?.html) || !parsed?.css) {
+      return false;
+    }
+
+    this.buildTitle = parsed.title?.trim() || this.buildTitle;
+    this.buildCode = {
+      screens: {
+        home: nextScreens?.home ?? parsed.html ?? this.buildCode.screens.home,
+        details:
+          nextScreens?.details ??
+          nextScreens?.home ??
+          parsed.html ??
+          this.buildCode.screens.details,
+        settings:
+          nextScreens?.settings ??
+          nextScreens?.home ??
+          parsed.html ??
+          this.buildCode.screens.settings,
+      },
+      css: parsed.css,
+      js: parsed.js ?? "",
+    };
+    return true;
+  }
+
   async handleBuildGenerate() {
     if (!this.client || !this.connected) {
       this.buildStatus = "Connect to the gateway before generating with Gemini.";
@@ -721,74 +802,95 @@ export class ClawdisApp extends LitElement {
 
     this.buildGenerating = true;
     this.buildStatus = "Asking Gemini to generate app code...";
-    const sessionKey = "__builder__";
-    const beforeHistory = (await this.client.request("chat.history", {
-      sessionKey,
-      limit: 50,
-    }).catch(() => ({ messages: [] }))) as { messages?: unknown[] };
-    const beforeCount = Array.isArray(beforeHistory.messages) ? beforeHistory.messages.length : 0;
-
+    const identity = this.buildStudioIdentityContext();
     const prompt = [
       "You are generating a lightweight web app prototype.",
       `App name: ${this.buildTitle || "New App"}`,
       `Palette: ${this.buildPalette}`,
       `Layout: ${this.buildLayout}`,
       `Prompt: ${this.buildPrompt}`,
+      `Brand context: The product surface is called ${identity.brandName}. The assistant is named ${identity.assistantName}. The user prefers to be called ${identity.callMe}.`,
+      `Tone context: ${identity.personality}`,
       'Return strict JSON only with keys "title", "screens", "css", and "js".',
       'The "screens" object must include "home", "details", and "settings", each containing only body markup for that screen.',
       "The css should be complete and shared across screens. The js should be browser-safe and optional.",
+      "Make it attractive, calm, and easy for everyday people to use.",
       "Do not wrap the JSON in markdown.",
     ].join("\n");
 
     try {
-      await this.client.request("chat.send", {
-        sessionKey,
-        message: prompt,
-        deliver: false,
-        idempotencyKey: generateUUID(),
-      });
-
-      let assistantText: string | null = null;
-      for (let attempt = 0; attempt < 18; attempt += 1) {
-        await delay(1200);
-        const history = (await this.client.request("chat.history", {
-          sessionKey,
-          limit: 50,
-        })) as { messages?: unknown[] };
-        const messages = Array.isArray(history.messages) ? history.messages : [];
-        if (messages.length <= beforeCount) continue;
-        const assistant = [...messages]
-          .reverse()
-          .find((entry) => (entry as Record<string, unknown>).role === "assistant");
-        assistantText = extractMessageText(assistant);
-        if (assistantText) break;
-      }
-
+      const assistantText = await this.requestBuilderResponse(prompt);
       if (!assistantText) {
-        this.buildStatus = "Gemini did not return app code yet. Try again in a moment.";
+        this.buildStatus =
+          "Gemini did not return app code yet. Try again in a moment.";
         return;
       }
 
-      const parsed = parseGeneratedBuildResponse(assistantText);
-      const nextScreens = parsed?.screens ?? null;
-      if ((!nextScreens?.home && !parsed?.html) || !parsed?.css) {
-        this.buildStatus = "Gemini responded, but the code could not be parsed cleanly. You can still edit the current draft.";
+      if (!this.applyGeneratedBuild(assistantText)) {
+        this.buildStatus =
+          "Gemini responded, but the code could not be parsed cleanly. You can still edit the current draft.";
         return;
       }
 
-      this.buildTitle = parsed.title?.trim() || this.buildTitle;
-      this.buildCode = {
-        screens: {
-          home: nextScreens?.home ?? parsed.html ?? this.buildCode.screens.home,
-          details: nextScreens?.details ?? nextScreens?.home ?? parsed.html ?? this.buildCode.screens.details,
-          settings: nextScreens?.settings ?? nextScreens?.home ?? parsed.html ?? this.buildCode.screens.settings,
-        },
-        css: parsed.css,
-        js: parsed.js ?? "",
-      };
-      this.buildStatus = "Gemini generated a fresh app concept. You can now edit, save, or export it.";
+      this.buildStatus =
+        "Gemini generated a fresh app concept. You can now edit, save, refine, or export it.";
     } catch (err) {
       this.buildStatus = `Build generation failed: ${String(err)}`;
+    } finally {
+      this.buildGenerating = false;
+    }
+  }
+
+  async handleBuildRefine() {
+    if (!this.client || !this.connected) {
+      this.buildStatus = "Connect to the gateway before refining with Gemini.";
+      return;
+    }
+    const refineInstruction = this.buildRefinePrompt.trim();
+    if (!refineInstruction) {
+      this.buildStatus = "Add a refine note first, like “make it feel more premium.”";
+      return;
+    }
+
+    this.buildGenerating = true;
+    this.buildStatus = "Refining the current draft with Gemini...";
+    const identity = this.buildStudioIdentityContext();
+    const prompt = [
+      "You are refining an existing lightweight web app prototype.",
+      `App name: ${this.buildTitle || "New App"}`,
+      `Palette: ${this.buildPalette}`,
+      `Layout: ${this.buildLayout}`,
+      `Original brief: ${this.buildPrompt}`,
+      `Refine instruction: ${refineInstruction}`,
+      `Brand context: The product surface is called ${identity.brandName}. The assistant is named ${identity.assistantName}. The user prefers to be called ${identity.callMe}.`,
+      `Tone context: ${identity.personality}`,
+      "Update the current draft instead of starting over.",
+      'Return strict JSON only with keys "title", "screens", "css", and "js".',
+      'The "screens" object must include "home", "details", and "settings", each containing only body markup for that screen.',
+      "The css should be complete and shared across screens. The js should be browser-safe and optional.",
+      "Do not wrap the JSON in markdown.",
+      `Current screens JSON: ${JSON.stringify(this.buildCode.screens)}`,
+      `Current CSS: ${this.buildCode.css}`,
+      `Current JS: ${this.buildCode.js}`,
+    ].join("\n");
+
+    try {
+      const assistantText = await this.requestBuilderResponse(prompt);
+      if (!assistantText) {
+        this.buildStatus =
+          "Gemini did not return a refined draft yet. Try again in a moment.";
+        return;
+      }
+
+      if (!this.applyGeneratedBuild(assistantText)) {
+        this.buildStatus =
+          "Gemini replied, but the refined draft could not be parsed cleanly. Your current draft is unchanged.";
+        return;
+      }
+
+      this.buildStatus = `Draft refined: ${refineInstruction}`;
+    } catch (err) {
+      this.buildStatus = `Build refine failed: ${String(err)}`;
     } finally {
       this.buildGenerating = false;
     }
@@ -841,6 +943,7 @@ export class ClawdisApp extends LitElement {
     this.buildSelectedDraftId = null;
     this.buildTitle = "New App";
     this.buildPrompt = "Create a polished app concept with a welcoming first screen and a clear next step.";
+    this.buildRefinePrompt = "Make it feel more premium without making it harder to use.";
     this.buildPalette = "sunrise";
     this.buildLayout = "dashboard";
     this.buildCode = createStarterBuild({

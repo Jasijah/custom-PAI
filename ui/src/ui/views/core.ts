@@ -1,0 +1,202 @@
+import { html, nothing } from "lit";
+
+import type { UiSettings } from "../storage";
+
+export type CoreProps = {
+  settings: UiSettings;
+  password: string;
+  connected: boolean;
+  raw: string;
+  valid: boolean | null;
+  issues: unknown[];
+  loading: boolean;
+  saving: boolean;
+  onSettingsChange: (next: UiSettings) => void;
+  onPasswordChange: (next: string) => void;
+  onRawChange: (next: string) => void;
+  onReload: () => void;
+  onSave: () => void;
+};
+
+export function renderCore(props: CoreProps) {
+  const assistantName = props.settings.assistantName.trim() || "Miya";
+  const brandName = props.settings.brandName.trim() || assistantName;
+  const callMe = props.settings.callMe.trim() || "friend";
+  const validity =
+    props.valid == null ? "unknown" : props.valid ? "valid" : "invalid";
+
+  return html`
+    <section class="grid grid-cols-2">
+      <div class="card card-soft">
+        <div class="section-title">Identity</div>
+        <div class="section-sub">
+          Shape how the assistant feels in the app before you worry about the technical side.
+        </div>
+        <div class="form-grid" style="margin-top: 16px;">
+          <label class="field">
+            <span>App name</span>
+            <input
+              .value=${props.settings.brandName}
+              @input=${(e: Event) =>
+                props.onSettingsChange({
+                  ...props.settings,
+                  brandName: (e.target as HTMLInputElement).value,
+                })}
+              placeholder="Miya"
+            />
+          </label>
+          <label class="field">
+            <span>Assistant name</span>
+            <input
+              .value=${props.settings.assistantName}
+              @input=${(e: Event) =>
+                props.onSettingsChange({
+                  ...props.settings,
+                  assistantName: (e.target as HTMLInputElement).value,
+                })}
+              placeholder="Miya"
+            />
+          </label>
+          <label class="field">
+            <span>What should it call you?</span>
+            <input
+              .value=${props.settings.callMe}
+              @input=${(e: Event) =>
+                props.onSettingsChange({
+                  ...props.settings,
+                  callMe: (e.target as HTMLInputElement).value,
+                })}
+              placeholder="Jasijah"
+            />
+          </label>
+          <label class="field full">
+            <span>Personality</span>
+            <textarea
+              .value=${props.settings.personality}
+              @input=${(e: Event) =>
+                props.onSettingsChange({
+                  ...props.settings,
+                  personality: (e.target as HTMLTextAreaElement).value,
+                })}
+              rows="6"
+            ></textarea>
+          </label>
+        </div>
+      </div>
+
+      <div class="card card-soft">
+        <div class="section-title">Preview</div>
+        <div class="section-sub">
+          A quick read on how your assistant will present itself around the app.
+        </div>
+        <div class="stack" style="margin-top: 18px;">
+          <div class="core-preview">
+            <div class="core-preview__kicker">${brandName}</div>
+            <div class="core-preview__headline">${assistantName}</div>
+            <div class="core-preview__body">
+              Hi ${callMe}. I’m ${assistantName}, and I’ll keep things calm, clear, and useful.
+            </div>
+          </div>
+          <div class="callout">
+            ${props.settings.personality.trim() || "Add a personality note to tune the assistant's tone."}
+          </div>
+          <div class="pill subtle">
+            <span class="statusDot ${props.connected ? "ok" : ""}"></span>
+            <span>${props.connected ? "Connected right now" : "Offline right now"}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-2">
+      <div class="card card-soft">
+        <div class="section-title">Connection basics</div>
+        <div class="section-sub">These settings stay local to this device and help the UI reconnect smoothly.</div>
+        <div class="form-grid" style="margin-top: 16px;">
+          <label class="field">
+            <span>Gateway address</span>
+            <input
+              .value=${props.settings.gatewayUrl}
+              @input=${(e: Event) =>
+                props.onSettingsChange({
+                  ...props.settings,
+                  gatewayUrl: (e.target as HTMLInputElement).value,
+                })}
+              placeholder="ws://127.0.0.1:18789"
+            />
+          </label>
+          <label class="field">
+            <span>Gateway token</span>
+            <input
+              .value=${props.settings.token}
+              @input=${(e: Event) =>
+                props.onSettingsChange({
+                  ...props.settings,
+                  token: (e.target as HTMLInputElement).value,
+                })}
+              placeholder="Gateway token"
+            />
+          </label>
+          <label class="field">
+            <span>Password (not stored)</span>
+            <input
+              type="password"
+              .value=${props.password}
+              @input=${(e: Event) =>
+                props.onPasswordChange((e.target as HTMLInputElement).value)}
+              placeholder="Optional password"
+            />
+          </label>
+          <label class="field">
+            <span>Default conversation</span>
+            <input
+              .value=${props.settings.sessionKey}
+              @input=${(e: Event) =>
+                props.onSettingsChange({
+                  ...props.settings,
+                  sessionKey: (e.target as HTMLInputElement).value,
+                })}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div class="card card-soft">
+        <div class="row" style="justify-content: space-between;">
+          <div>
+            <div class="section-title">Advanced config</div>
+            <div class="section-sub">For direct gateway JSON edits when you need something deeper than the Core controls.</div>
+          </div>
+          <div class="row">
+            <span class="pill">${validity}</span>
+            <button class="btn" ?disabled=${props.loading} @click=${props.onReload}>
+              ${props.loading ? "Loading..." : "Reload"}
+            </button>
+            <button class="btn primary" ?disabled=${props.saving || !props.connected} @click=${props.onSave}>
+              ${props.saving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </div>
+
+        <div class="muted" style="margin-top: 10px;">
+          Writes to <span class="mono">~/.clawdis/clawdis.json</span>. Some changes still need a gateway restart.
+        </div>
+
+        <label class="field" style="margin-top: 12px;">
+          <span>Raw JSON5</span>
+          <textarea
+            .value=${props.raw}
+            @input=${(e: Event) =>
+              props.onRawChange((e.target as HTMLTextAreaElement).value)}
+          ></textarea>
+        </label>
+
+        ${props.issues.length > 0
+          ? html`<div class="callout danger" style="margin-top: 12px;">
+              <pre class="code-block">${JSON.stringify(props.issues, null, 2)}</pre>
+            </div>`
+          : nothing}
+      </div>
+    </section>
+  `;
+}

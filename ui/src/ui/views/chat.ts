@@ -6,6 +6,8 @@ import type { ProvidersStatusSnapshot, SessionsListResult } from "../types";
 import { formatToolDetail, resolveToolDisplay } from "../tool-display";
 
 export type ChatProps = {
+  assistantName: string;
+  callMe: string;
   sessionKey: string;
   onSessionKeyChange: (next: string) => void;
   thinkingLevel: string | null;
@@ -44,7 +46,7 @@ export function renderChat(props: ChatProps) {
   const composePlaceholder = (() => {
     if (!props.connected) return "Connect to your gateway to begin.";
     if (!props.canSend) return "Connect a mobile node to unlock talk and voice.";
-    return "Ask anything, plan your day, or tell your assistant what matters.";
+    return `Ask anything, plan your day, or tell ${props.assistantName} what matters.`;
   })();
   const quickPrompts = [
     "Help me plan today",
@@ -104,7 +106,7 @@ export function renderChat(props: ChatProps) {
           <div class="chat-header__right">
             <div class="chat-health">
               <span class="statusDot ${geminiConnected ? "ok" : ""}"></span>
-              <span>${props.connected ? "Gemini ready" : "Offline"}</span>
+              <span>${props.connected ? `${props.assistantName} is ready` : "Offline"}</span>
             </div>
             <div class="muted">Thinking: ${props.thinkingLevel ?? "balanced"}</div>
           </div>
@@ -146,7 +148,13 @@ export function renderChat(props: ChatProps) {
         <div class="chat-body">
           <div class="chat-thread" role="log" aria-live="polite">
             ${props.loading ? html`<div class="muted">Loading chat...</div>` : nothing}
-            ${props.messages.map((m) => renderMessage(m, { onReadAloud: props.onReadAloud }))}
+            ${props.messages.map((m) =>
+              renderMessage(m, {
+                onReadAloud: props.onReadAloud,
+                assistantName: props.assistantName,
+                callMe: props.callMe,
+              }),
+            )}
             ${props.stream
               ? renderMessage(
                   {
@@ -154,7 +162,12 @@ export function renderChat(props: ChatProps) {
                     content: [{ type: "text", text: props.stream }],
                     timestamp: Date.now(),
                   },
-                  { streaming: true, onReadAloud: props.onReadAloud },
+                  {
+                    streaming: true,
+                    onReadAloud: props.onReadAloud,
+                    assistantName: props.assistantName,
+                    callMe: props.callMe,
+                  },
                 )
               : nothing}
           </div>
@@ -295,7 +308,15 @@ function formatSessionTime(updatedAt: number) {
   });
 }
 
-function renderMessage(message: unknown, opts?: { streaming?: boolean; onReadAloud?: (text: string) => void }) {
+function renderMessage(
+  message: unknown,
+  opts?: {
+    streaming?: boolean;
+    onReadAloud?: (text: string) => void;
+    assistantName?: string;
+    callMe?: string;
+  },
+) {
   const m = message as Record<string, unknown>;
   const role = typeof m.role === "string" ? m.role : "unknown";
   const toolCards = extractToolCards(message);
@@ -312,6 +333,12 @@ function renderMessage(message: unknown, opts?: { streaming?: boolean; onReadAlo
     typeof m.timestamp === "number" ? new Date(m.timestamp).toLocaleTimeString() : "";
   const klass = role === "assistant" ? "assistant" : role === "user" ? "user" : "other";
   const who = role === "assistant" ? "Assistant" : role === "user" ? "You" : role;
+  const displayWho =
+    role === "assistant"
+      ? opts?.assistantName?.trim() || who
+      : role === "user"
+        ? opts?.callMe?.trim() || who
+        : who;
   return html`
     <div class="chat-line ${klass}">
       <div class="chat-msg">
@@ -321,7 +348,7 @@ function renderMessage(message: unknown, opts?: { streaming?: boolean; onReadAlo
           ${toolCards.map((card) => renderToolCard(card))}
         </div>
         <div class="chat-stamp mono">
-          ${who}${timestamp ? html` Â· ${timestamp}` : nothing}
+          ${displayWho}${timestamp ? html` · ${timestamp}` : nothing}
         </div>
       </div>
     </div>
@@ -436,3 +463,4 @@ function isToolResultMessage(message: unknown): boolean {
   const role = typeof m.role === "string" ? m.role.toLowerCase() : "";
   return role === "toolresult" || role === "tool_result";
 }
+
