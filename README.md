@@ -117,6 +117,8 @@ If you run from source, prefer `pnpm clawdis …` (not global `clawdis`).
 
 - `pnpm dev`, `pnpm start`, and `pnpm build` are Node-based and work in PowerShell, CMD, and macOS Terminal.
 - Avoid shell-specific command chains for local automation; prefer `pnpm <script>` wrappers already in `package.json`.
+- On Windows, double-click [Start-Miya.cmd](C:/Users/My/Documents/custom-PAI-repo/Start-Miya.cmd) to launch the local gateway and open the control UI without using a terminal.
+- If you want a desktop icon, double-click [Install-Miya-Shortcut.cmd](C:/Users/My/Documents/custom-PAI-repo/Install-Miya-Shortcut.cmd) once to create a `Start Miya` shortcut on your desktop.
 
 ## Chat commands
 
