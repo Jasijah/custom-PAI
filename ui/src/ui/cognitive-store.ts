@@ -144,7 +144,7 @@ const defaultPermissions: PermissionGrant[] = [
   "mic",
   "tts",
 ].map((scope) => ({
-  scope,
+  scope: scope as PermissionScope,
   enabled: false,
   duration: "1h" as GrantDuration,
   grantedAt: null,

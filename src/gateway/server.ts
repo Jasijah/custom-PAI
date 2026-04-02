@@ -5032,21 +5032,6 @@ export async function startGatewayServer(
               break;
             }
             case "chat.send": {
-              if (
-                client &&
-                isWebchatConnect(client.connect) &&
-                !hasConnectedMobileNode()
-              ) {
-                respond(
-                  false,
-                  undefined,
-                  errorShape(
-                    ErrorCodes.UNAVAILABLE,
-                    "web chat disabled: no connected iOS/Android nodes",
-                  ),
-                );
-                break;
-              }
               const params = (req.params ?? {}) as Record<string, unknown>;
               if (!validateChatSendParams(params)) {
                 respond(

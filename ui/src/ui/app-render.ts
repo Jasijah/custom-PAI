@@ -206,6 +206,9 @@ export type AppViewState = {
   handleWhatsAppWait: () => Promise<void>;
   handleWhatsAppLogout: () => Promise<void>;
   handleTelegramSave: () => Promise<void>;
+  handleDiscordSave: () => Promise<void>;
+  handleSignalSave: () => Promise<void>;
+  handleIMessageSave: () => Promise<void>;
   handleSendChat: () => Promise<void>;
   handleBuildGenerate: () => Promise<void>;
   handleBuildRefine: () => Promise<void>;
@@ -221,6 +224,9 @@ export type AppViewState = {
   handleIdeaApprove: (id: string) => void;
   handleIdeaImplemented: (id: string) => void;
   handleIdeaDelete: (id: string) => void;
+  inferActiveInferenceMode: () => "api" | "local" | "unknown";
+  inferActiveModelRef: () => string | null;
+  handleApplyInferenceMode: (mode: "api" | "local") => Promise<void>;
   handlePermission: (scope: PermissionScope, enabled: boolean, duration: GrantDuration) => void;
   handleMemoryCreate: (input: {
     title: string;
@@ -580,6 +586,8 @@ export function renderApp(state: AppViewState) {
                 loading: state.configLoading,
                 saving: state.configSaving,
                 connected: state.connected,
+                activeInferenceMode: state.inferActiveInferenceMode(),
+                activeModelRef: state.inferActiveModelRef(),
                 improvementIdeas: state.improvementIdeas,
                 ideaDraft: state.coreIdeaDraft,
                 onSettingsChange: (next) => state.applySettings(next),
@@ -589,6 +597,7 @@ export function renderApp(state: AppViewState) {
                 onIdeaApprove: (id) => state.handleIdeaApprove(id),
                 onIdeaImplemented: (id) => state.handleIdeaImplemented(id),
                 onIdeaDelete: (id) => state.handleIdeaDelete(id),
+                onApplyInferenceMode: (mode) => state.handleApplyInferenceMode(mode),
                 onRawChange: (next) => (state.configRaw = next),
                 onReload: () => loadConfig(state),
                 onSave: () => saveConfig(state),

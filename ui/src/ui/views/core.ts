@@ -29,6 +29,8 @@ export type CoreProps = {
   settings: UiSettings;
   password: string;
   connected: boolean;
+  activeInferenceMode: "api" | "local" | "unknown";
+  activeModelRef: string | null;
   improvementIdeas: ImprovementIdea[];
   ideaDraft: string;
   raw: string;
@@ -43,6 +45,7 @@ export type CoreProps = {
   onIdeaApprove: (id: string) => void;
   onIdeaImplemented: (id: string) => void;
   onIdeaDelete: (id: string) => void;
+  onApplyInferenceMode: (mode: "api" | "local") => void;
   onRawChange: (next: string) => void;
   onReload: () => void;
   onSave: () => void;
@@ -156,6 +159,130 @@ export function renderCore(props: CoreProps) {
 
     <section class="grid grid-cols-2">
       <div class="card card-soft">
+        <div class="section-title">Brain</div>
+        <div class="section-sub">
+          Choose between fast cloud replies and a fully local setup. You can switch back any time.
+        </div>
+        <div class="form-grid" style="margin-top: 16px;">
+          <label class="field">
+            <span>Default mode</span>
+            <select
+              .value=${props.settings.inferenceMode}
+              @change=${(e: Event) =>
+                props.onSettingsChange({
+                  ...props.settings,
+                  inferenceMode: (e.target as HTMLSelectElement).value as UiSettings["inferenceMode"],
+                })}
+            >
+              <option value="api">Gemini API</option>
+              <option value="local">Local model</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Gemini model</span>
+            <input
+              .value=${props.settings.apiModelRef}
+              @input=${(e: Event) =>
+                props.onSettingsChange({
+                  ...props.settings,
+                  apiModelRef: (e.target as HTMLInputElement).value,
+                })}
+              placeholder="gemini/gemini-2.5-flash"
+            />
+          </label>
+          <label class="field">
+            <span>Local endpoint</span>
+            <input
+              .value=${props.settings.localBaseUrl}
+              @input=${(e: Event) =>
+                props.onSettingsChange({
+                  ...props.settings,
+                  localBaseUrl: (e.target as HTMLInputElement).value,
+                })}
+              placeholder="http://127.0.0.1:11434/v1"
+            />
+          </label>
+          <label class="field">
+            <span>Local model</span>
+            <input
+              .value=${props.settings.localModelId}
+              @input=${(e: Event) =>
+                props.onSettingsChange({
+                  ...props.settings,
+                  localModelId: (e.target as HTMLInputElement).value,
+                })}
+              placeholder="gemma3:1b"
+            />
+          </label>
+        </div>
+        <div class="chip-row" style="margin-top: 14px;">
+          <span class="pill">Active: ${props.activeInferenceMode === "unknown" ? "Unknown" : props.activeInferenceMode === "api" ? "Gemini API" : "Local"}</span>
+          ${props.activeModelRef ? html`<span class="pill subtle mono">${props.activeModelRef}</span>` : nothing}
+        </div>
+        <div class="row" style="margin-top: 14px;">
+          <button class="btn" ?disabled=${!props.connected} @click=${() => props.onApplyInferenceMode("api")}>Use Gemini</button>
+          <button class="btn primary" ?disabled=${!props.connected} @click=${() => props.onApplyInferenceMode("local")}>Use local model</button>
+        </div>
+        <div class="callout" style="margin-top: 14px;">
+          For this machine, a smaller local model like <span class="mono">gemma3:1b</span> is the safer starting point than large Gemma 4 variants.
+        </div>
+      </div>
+
+      <div class="card card-soft">
+        <div class="section-title">Connection basics</div>
+        <div class="section-sub">These settings stay local to this device and help the UI reconnect smoothly.</div>
+        <div class="form-grid" style="margin-top: 16px;">
+          <label class="field">
+            <span>Gateway address</span>
+            <input
+              .value=${props.settings.gatewayUrl}
+              @input=${(e: Event) =>
+                props.onSettingsChange({
+                  ...props.settings,
+                  gatewayUrl: (e.target as HTMLInputElement).value,
+                })}
+              placeholder="ws://127.0.0.1:18789"
+            />
+          </label>
+          <label class="field">
+            <span>Gateway token</span>
+            <input
+              .value=${props.settings.token}
+              @input=${(e: Event) =>
+                props.onSettingsChange({
+                  ...props.settings,
+                  token: (e.target as HTMLInputElement).value,
+                })}
+              placeholder="Gateway token"
+            />
+          </label>
+          <label class="field">
+            <span>Password (not stored)</span>
+            <input
+              type="password"
+              .value=${props.password}
+              @input=${(e: Event) =>
+                props.onPasswordChange((e.target as HTMLInputElement).value)}
+              placeholder="Optional password"
+            />
+          </label>
+          <label class="field">
+            <span>Default conversation</span>
+            <input
+              .value=${props.settings.sessionKey}
+              @input=${(e: Event) =>
+                props.onSettingsChange({
+                  ...props.settings,
+                  sessionKey: (e.target as HTMLInputElement).value,
+                })}
+            />
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-2">
+      <div class="card card-soft">
         <div class="section-title">Improve Miya</div>
         <div class="section-sub">
           Capture ideas here, review them, and send the good ones straight into Build.
@@ -210,58 +337,6 @@ export function renderCore(props: CoreProps) {
     </section>
 
     <section class="grid grid-cols-2">
-      <div class="card card-soft">
-        <div class="section-title">Connection basics</div>
-        <div class="section-sub">These settings stay local to this device and help the UI reconnect smoothly.</div>
-        <div class="form-grid" style="margin-top: 16px;">
-          <label class="field">
-            <span>Gateway address</span>
-            <input
-              .value=${props.settings.gatewayUrl}
-              @input=${(e: Event) =>
-                props.onSettingsChange({
-                  ...props.settings,
-                  gatewayUrl: (e.target as HTMLInputElement).value,
-                })}
-              placeholder="ws://127.0.0.1:18789"
-            />
-          </label>
-          <label class="field">
-            <span>Gateway token</span>
-            <input
-              .value=${props.settings.token}
-              @input=${(e: Event) =>
-                props.onSettingsChange({
-                  ...props.settings,
-                  token: (e.target as HTMLInputElement).value,
-                })}
-              placeholder="Gateway token"
-            />
-          </label>
-          <label class="field">
-            <span>Password (not stored)</span>
-            <input
-              type="password"
-              .value=${props.password}
-              @input=${(e: Event) =>
-                props.onPasswordChange((e.target as HTMLInputElement).value)}
-              placeholder="Optional password"
-            />
-          </label>
-          <label class="field">
-            <span>Default conversation</span>
-            <input
-              .value=${props.settings.sessionKey}
-              @input=${(e: Event) =>
-                props.onSettingsChange({
-                  ...props.settings,
-                  sessionKey: (e.target as HTMLInputElement).value,
-                })}
-            />
-          </label>
-        </div>
-      </div>
-
       <div class="card card-soft">
         <div class="row" style="justify-content: space-between;">
           <div>

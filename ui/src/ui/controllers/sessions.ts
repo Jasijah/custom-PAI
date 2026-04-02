@@ -42,12 +42,17 @@ export async function loadSessions(state: SessionsState) {
 export async function patchSession(
   state: SessionsState,
   key: string,
-  patch: { thinkingLevel?: string | null; verboseLevel?: string | null },
+  patch: {
+    thinkingLevel?: string | null;
+    verboseLevel?: string | null;
+    model?: string | null;
+  },
 ) {
   if (!state.client || !state.connected) return;
   const params: Record<string, unknown> = { key };
   if ("thinkingLevel" in patch) params.thinkingLevel = patch.thinkingLevel;
   if ("verboseLevel" in patch) params.verboseLevel = patch.verboseLevel;
+  if ("model" in patch) params.model = patch.model;
   try {
     await state.client.request("sessions.patch", params);
     await loadSessions(state);

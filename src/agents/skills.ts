@@ -186,7 +186,9 @@ export function resolveSkillsInstallPreferences(
     manager === "bun" ||
     manager === "npm"
       ? (manager as SkillsInstallPreferences["nodeManager"])
-      : "npm";
+      : hasBinary("pnpm")
+        ? "pnpm"
+        : "npm";
   return { preferBrew, nodeManager };
 }
 
@@ -253,13 +255,25 @@ export function isBundledSkillAllowed(
 export function hasBinary(bin: string): boolean {
   const pathEnv = process.env.PATH ?? "";
   const parts = pathEnv.split(path.delimiter).filter(Boolean);
+  const pathExts =
+    process.platform === "win32"
+      ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
+          .split(";")
+          .map((ext) => ext.trim())
+          .filter(Boolean)
+      : [""];
   for (const part of parts) {
-    const candidate = path.join(part, bin);
-    try {
-      fs.accessSync(candidate, fs.constants.X_OK);
-      return true;
-    } catch {
-      // keep scanning
+    const candidates =
+      process.platform === "win32" && path.extname(bin).length === 0
+        ? [path.join(part, bin), ...pathExts.map((ext) => path.join(part, `${bin}${ext.toLowerCase()}`))]
+        : [path.join(part, bin)];
+    for (const candidate of candidates) {
+      try {
+        fs.accessSync(candidate, fs.constants.X_OK);
+        return true;
+      } catch {
+        // keep scanning
+      }
     }
   }
   return false;

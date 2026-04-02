@@ -14,6 +14,10 @@ export type UiSettings = {
   assistantName: string;
   callMe: string;
   personality: string;
+  inferenceMode: "api" | "local";
+  apiModelRef: string;
+  localBaseUrl: string;
+  localModelId: string;
 };
 
 export type BuildDraftRecord = {
@@ -76,6 +80,10 @@ export function loadSettings(): UiSettings {
     callMe: "",
     personality:
       "Warm, capable, calm, and everyday-friendly. Helpful without sounding robotic or overly technical.",
+    inferenceMode: "api",
+    apiModelRef: "gemini/gemini-2.5-flash",
+    localBaseUrl: "http://127.0.0.1:11434/v1",
+    localModelId: "gemma3:1b",
   };
 
   try {
@@ -112,6 +120,22 @@ export function loadSettings(): UiSettings {
         typeof parsed.personality === "string" && parsed.personality.trim()
           ? parsed.personality.trim()
           : defaults.personality,
+      inferenceMode:
+        parsed.inferenceMode === "local" || parsed.inferenceMode === "api"
+          ? parsed.inferenceMode
+          : defaults.inferenceMode,
+      apiModelRef:
+        typeof parsed.apiModelRef === "string" && parsed.apiModelRef.trim()
+          ? parsed.apiModelRef.trim()
+          : defaults.apiModelRef,
+      localBaseUrl:
+        typeof parsed.localBaseUrl === "string" && parsed.localBaseUrl.trim()
+          ? parsed.localBaseUrl.trim()
+          : defaults.localBaseUrl,
+      localModelId:
+        typeof parsed.localModelId === "string" && parsed.localModelId.trim()
+          ? parsed.localModelId.trim()
+          : defaults.localModelId,
     };
   } catch {
     return defaults;

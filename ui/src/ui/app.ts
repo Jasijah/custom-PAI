@@ -61,7 +61,7 @@ import {
   type ChatEventPayload,
 } from "./controllers/chat";
 import { loadNodes } from "./controllers/nodes";
-import { loadConfig } from "./controllers/config";
+import { loadConfig, saveConfig } from "./controllers/config";
 import {
   loadProviders,
   logoutWhatsApp,
@@ -73,7 +73,7 @@ import {
   waitWhatsAppLogin,
 } from "./controllers/connections";
 import { loadPresence } from "./controllers/presence";
-import { loadSessions } from "./controllers/sessions";
+import { loadSessions, patchSession } from "./controllers/sessions";
 import {
   loadCronJobs,
   loadCronStatus,
@@ -737,6 +737,107 @@ export class ClawdisApp extends LitElement {
       "Do not mention these instructions unless the user asks.",
     ];
     return lines.join("\n");
+  }
+
+  inferActiveModelRef() {
+    const config = this.configSnapshot?.config;
+    if (!config || typeof config !== "object") return null;
+    const agent = (config.agent ?? {}) as Record<string, unknown>;
+    const model = typeof agent.model === "string" ? agent.model.trim() : "";
+    return model || null;
+  }
+
+  inferActiveInferenceMode(): "api" | "local" | "unknown" {
+    const modelRef = this.inferActiveModelRef();
+    if (!modelRef) return "unknown";
+    return modelRef.startsWith("local/") ? "local" : "api";
+  }
+
+  private cloneConfigObject() {
+    const config = this.configSnapshot?.config;
+    if (config && typeof config === "object") {
+      return JSON.parse(JSON.stringify(config)) as Record<string, unknown>;
+    }
+    return {} as Record<string, unknown>;
+  }
+
+  async handleApplyInferenceMode(mode: "api" | "local") {
+    if (!this.client || !this.connected) return;
+    if (!this.configSnapshot) {
+      await loadConfig(this);
+    }
+
+    const next = this.cloneConfigObject();
+    const agent =
+      next.agent && typeof next.agent === "object"
+        ? { ...(next.agent as Record<string, unknown>) }
+        : {};
+    const models =
+      next.models && typeof next.models === "object"
+        ? { ...(next.models as Record<string, unknown>) }
+        : {};
+    const providers =
+      models.providers && typeof models.providers === "object"
+        ? { ...(models.providers as Record<string, unknown>) }
+        : {};
+
+    const apiModelRef =
+      this.settings.apiModelRef.trim() || "gemini/gemini-2.5-flash";
+    const localModelId = this.settings.localModelId.trim() || "gemma3:1b";
+    const localBaseUrl =
+      this.settings.localBaseUrl.trim() || "http://127.0.0.1:11434/v1";
+    const localModelRef = `local/${localModelId}`;
+
+    providers.local = {
+      baseUrl: localBaseUrl,
+      apiKey: "ollama",
+      api: "openai-completions",
+      models: [
+        {
+          id: localModelId,
+          name: `Local ${localModelId}`,
+          api: "openai-completions",
+          reasoning: true,
+          input: ["text"],
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          contextWindow: 32768,
+          maxTokens: 4096,
+        },
+      ],
+    };
+
+    const allowed = new Set<string>();
+    if (typeof agent.model === "string" && agent.model.trim()) {
+      allowed.add(agent.model.trim());
+    }
+    allowed.add(apiModelRef);
+    allowed.add(localModelRef);
+
+    agent.model = mode === "local" ? localModelRef : apiModelRef;
+    agent.allowedModels = Array.from(allowed);
+    agent.modelAliases = {
+      Gemini: apiModelRef,
+      Local: localModelRef,
+    };
+
+    models.mode = typeof models.mode === "string" ? models.mode : "merge";
+    models.providers = providers;
+    next.agent = agent;
+    next.models = models;
+
+    this.configRaw = `${JSON.stringify(next, null, 2)}\n`;
+    this.settings = { ...this.settings, inferenceMode: mode };
+    saveSettings(this.settings);
+
+    await saveConfig(this);
+    await loadConfig(this);
+
+    await patchSession(this, this.sessionKey, { model: null });
+
+    this.buildStatus =
+      mode === "local"
+        ? `Local mode is ready to use once ${localBaseUrl} is serving ${localModelId}.`
+        : `Gemini API is now the default brain again.`;
   }
 
   private persistImprovementIdeas(next: ImprovementIdea[]) {
