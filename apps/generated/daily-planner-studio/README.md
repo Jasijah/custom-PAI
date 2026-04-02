@@ -1,12 +1,17 @@
 # Daily Planner Studio
 
-This folder was scaffolded from the Clawdis Build studio as a generated multi-screen app starter.
+Generated from the Clawdis Build studio as a real Vite app scaffold.
 
-Files:
+## Run
+
+```bash
+pnpm install
+pnpm dev
+```
+
+## Structure
+
 - `index.html`
-- `details.html`
-- `settings.html`
-- `styles.css`
-- `app.js`
-
-Use it as a seed project for a richer app implementation.
+- `src/main.js`
+- `src/styles.css`
+- `package.json`

@@ -868,6 +868,31 @@ export class ClawdisApp extends LitElement {
     this.buildStatus = "Exported structured files for all three screens.";
   }
 
+  async handleBuildScaffold() {
+    if (!this.client || !this.connected) {
+      this.buildStatus = "Connect to the gateway before creating a repo app.";
+      return;
+    }
+    const slug =
+      (this.buildTitle || "app")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "app";
+    try {
+      const res = (await this.client.request("builder.scaffold", {
+        title: this.buildTitle,
+        slug,
+        screens: this.buildCode.screens,
+        css: this.buildCode.css,
+        js: this.buildCode.js,
+        overwrite: true,
+      })) as { path?: string; files?: string[] };
+      this.buildStatus = `Created Vite app scaffold in ${res.path ?? `apps/generated/${slug}`}.`;
+    } catch (err) {
+      this.buildStatus = `Repo scaffold failed: ${String(err)}`;
+    }
+  }
+
 
   private persistCognitive(next: CognitiveState) {
     this.cognitive = next;

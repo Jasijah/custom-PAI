@@ -201,6 +201,7 @@ export type AppViewState = {
   handleBuildGenerate: () => Promise<void>;
   handleBuildSaveDraft: () => void;
   handleBuildExport: () => void;
+  handleBuildScaffold: () => Promise<void>;
   handleBuildSelectDraft: (id: string) => void;
   handleBuildNewDraft: () => void;
   handleBuildDeleteDraft: (id: string) => void;
@@ -507,6 +508,7 @@ export function renderApp(state: AppViewState) {
               onGenerate: () => state.handleBuildGenerate(),
               onSaveDraft: () => state.handleBuildSaveDraft(),
               onExport: () => state.handleBuildExport(),
+              onScaffold: () => state.handleBuildScaffold(),
               onSelectDraft: (id) => state.handleBuildSelectDraft(id),
               onNewDraft: () => state.handleBuildNewDraft(),
               onDeleteDraft: (id) => state.handleBuildDeleteDraft(id),

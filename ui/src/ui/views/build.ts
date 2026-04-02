@@ -34,6 +34,7 @@ export type BuildProps = {
   onGenerate: () => void;
   onSaveDraft: () => void;
   onExport: () => void;
+  onScaffold: () => void;
   onSelectDraft: (id: string) => void;
   onNewDraft: () => void;
   onDeleteDraft: (id: string) => void;
@@ -158,6 +159,7 @@ export function renderBuild(props: BuildProps) {
             </button>
             <button class="btn" @click=${props.onSaveDraft}>Save draft</button>
             <button class="btn" @click=${props.onExport}>Structured export</button>
+            <button class="btn" @click=${props.onScaffold}>Create repo app</button>
           </div>
         </section>
 
