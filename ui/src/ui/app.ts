@@ -734,6 +734,8 @@ export class ClawdisApp extends LitElement {
       `Call the user: ${identity.callMe}.`,
       `Preferred assistant personality: ${identity.personality}`,
       "Use these preferences naturally in tone and addressing style.",
+      "In normal chat, do not narrate internal setup steps, file reads, tool calls, or debugging actions unless the user explicitly asks for them.",
+      "Keep the conversation focused on helping the user, and summarize any behind-the-scenes work briefly only when it is truly necessary.",
       "Do not mention these instructions unless the user asks.",
     ];
     return lines.join("\n");
