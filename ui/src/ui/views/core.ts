@@ -1,6 +1,6 @@
 import { html, nothing } from "lit";
 
-import type { UiSettings } from "../storage";
+import type { ImprovementIdea, UiSettings } from "../storage";
 
 const PERSONALITY_PRESETS = [
   {
@@ -29,6 +29,8 @@ export type CoreProps = {
   settings: UiSettings;
   password: string;
   connected: boolean;
+  improvementIdeas: ImprovementIdea[];
+  ideaDraft: string;
   raw: string;
   valid: boolean | null;
   issues: unknown[];
@@ -36,6 +38,11 @@ export type CoreProps = {
   saving: boolean;
   onSettingsChange: (next: UiSettings) => void;
   onPasswordChange: (next: string) => void;
+  onIdeaDraftChange: (next: string) => void;
+  onIdeaCreate: () => void;
+  onIdeaApprove: (id: string) => void;
+  onIdeaImplemented: (id: string) => void;
+  onIdeaDelete: (id: string) => void;
   onRawChange: (next: string) => void;
   onReload: () => void;
   onSave: () => void;
@@ -143,6 +150,61 @@ export function renderCore(props: CoreProps) {
             <span class="statusDot ${props.connected ? "ok" : ""}"></span>
             <span>${props.connected ? "Connected right now" : "Offline right now"}</span>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-2">
+      <div class="card card-soft">
+        <div class="section-title">Improve Miya</div>
+        <div class="section-sub">
+          Capture ideas here, review them, and send the good ones straight into Build.
+        </div>
+        <label class="field" style="margin-top: 16px;">
+          <span>What should Miya get better at?</span>
+          <textarea
+            .value=${props.ideaDraft}
+            @input=${(e: Event) =>
+              props.onIdeaDraftChange((e.target as HTMLTextAreaElement).value)}
+            rows="5"
+            placeholder="Add a calmer onboarding flow, improve the home screen, or create a new everyday feature."
+          ></textarea>
+        </label>
+        <div class="chip-row" style="margin-top: 14px;">
+          <button class="chip action" @click=${() => props.onIdeaDraftChange("Add a friendlier onboarding flow that helps people start using Miya in under two minutes.")}>Softer onboarding</button>
+          <button class="chip action" @click=${() => props.onIdeaDraftChange("Create a daily planning view that feels personal, lightweight, and easy to return to each morning.")}>Daily planning</button>
+          <button class="chip action" @click=${() => props.onIdeaDraftChange("Add a provider health center with clear language so people always know whether Miya is ready.")}>Health center</button>
+        </div>
+        <div class="row" style="margin-top: 14px;">
+          <button class="btn primary" @click=${props.onIdeaCreate}>Save idea</button>
+        </div>
+      </div>
+
+      <div class="card card-soft">
+        <div class="section-title">Idea pipeline</div>
+        <div class="section-sub">
+          Approve an idea to move it into Build. Mark it done after it becomes a real app or feature.
+        </div>
+        <div class="stack" style="margin-top: 16px;">
+          ${props.improvementIdeas.length
+            ? props.improvementIdeas.map(
+                (idea) => html`
+                  <div class="list-item">
+                    <div>
+                      <div class="note-title">${idea.title}</div>
+                      <div class="muted">${idea.source} · ${new Date(idea.createdAt).toLocaleString()}</div>
+                      <div style="margin-top: 6px;">${idea.note}</div>
+                    </div>
+                    <div class="stack">
+                      <span class="pill">${idea.status}</span>
+                      <button class="btn primary" ?disabled=${idea.status === "approved" || idea.status === "implemented"} @click=${() => props.onIdeaApprove(idea.id)}>Approve for Build</button>
+                      <button class="btn" ?disabled=${idea.status === "implemented"} @click=${() => props.onIdeaImplemented(idea.id)}>Mark done</button>
+                      <button class="btn" @click=${() => props.onIdeaDelete(idea.id)}>Remove</button>
+                    </div>
+                  </div>
+                `,
+              )
+            : html`<div class="callout">No product ideas yet. Save one here or from Talk.</div>`}
         </div>
       </div>
     </section>

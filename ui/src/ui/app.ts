@@ -5,12 +5,15 @@ import { GatewayBrowserClient, type GatewayEventFrame, type GatewayHelloOk } fro
 import {
   loadBuildDrafts,
   loadBuildHistory,
+  loadImprovementIdeas,
   loadSettings,
   saveBuildDrafts,
   saveBuildHistory,
+  saveImprovementIdeas,
   saveSettings,
   type BuildHistoryEntry,
   type BuildDraftRecord,
+  type ImprovementIdea,
   type UiSettings,
 } from "./storage";
 import { renderApp } from "./app-render";
@@ -162,6 +165,8 @@ export class ClawdisApp extends LitElement {
   });
   @state() buildDrafts: BuildDraftRecord[] = loadBuildDrafts();
   @state() buildHistory: BuildHistoryEntry[] = loadBuildHistory();
+  @state() improvementIdeas: ImprovementIdea[] = loadImprovementIdeas();
+  @state() coreIdeaDraft = "Add a simple way to help Miya improve itself with approved product ideas.";
   @state() buildSelectedDraftId: string | null = null;
   @state() buildActiveScreen: BuildScreenId = "home";
   @state() buildGenerating = false;
@@ -415,17 +420,6 @@ export class ClawdisApp extends LitElement {
     this.nodesPollInterval = null;
   }
 
-  private hasConnectedMobileNode() {
-    return this.nodes.some((n) => {
-      if (!Boolean(n.connected)) return false;
-      const p =
-        typeof n.platform === "string" ? n.platform.trim().toLowerCase() : "";
-      return (
-        p.startsWith("ios") || p.startsWith("ipados") || p.startsWith("android")
-      );
-    });
-  }
-
   private onEvent(evt: GatewayEventFrame) {
     this.eventLog = [
       { ts: Date.now(), event: evt.event, payload: evt.payload },
@@ -676,7 +670,7 @@ export class ClawdisApp extends LitElement {
   }
 
   async handleSendChat() {
-    if (!this.connected || !this.hasConnectedMobileNode()) return;
+    if (!this.connected) return;
     const seed = this.chatMessage;
     await sendChat(this, this.buildLiveAssistantPrompt());
     if (seed.trim()) this.createSuggestionFromChat(seed);
@@ -743,6 +737,93 @@ export class ClawdisApp extends LitElement {
       "Do not mention these instructions unless the user asks.",
     ];
     return lines.join("\n");
+  }
+
+  private persistImprovementIdeas(next: ImprovementIdea[]) {
+    this.improvementIdeas = next;
+    saveImprovementIdeas(next);
+  }
+
+  private createImprovementIdea(input: {
+    title: string;
+    prompt: string;
+    note: string;
+    source: ImprovementIdea["source"];
+  }) {
+    const idea: ImprovementIdea = {
+      id: generateUUID(),
+      title: input.title,
+      prompt: input.prompt,
+      note: input.note,
+      source: input.source,
+      status: "suggested",
+      createdAt: Date.now(),
+    };
+    this.persistImprovementIdeas([idea, ...this.improvementIdeas].slice(0, 40));
+    return idea;
+  }
+
+  handleCoreIdeaCreate() {
+    const note = this.coreIdeaDraft.trim();
+    if (!note) return;
+    const title = summarizeIdeaTitle(note);
+    this.createImprovementIdea({
+      title,
+      prompt: note,
+      note,
+      source: "core",
+    });
+    this.coreIdeaDraft = "";
+    this.lastError = null;
+  }
+
+  handleTalkIdeaCreate() {
+    const currentDraft = this.chatMessage.trim();
+    const latestUser = [...this.chatMessages]
+      .reverse()
+      .find((entry) => (entry as Record<string, unknown>).role === "user");
+    const latestUserText = extractMessageText(latestUser) ?? "";
+    const note = currentDraft || latestUserText.trim();
+    if (!note) {
+      this.lastError = "Write a message in Talk first, or use one of your recent messages.";
+      return;
+    }
+    const title = summarizeIdeaTitle(note);
+    this.createImprovementIdea({
+      title,
+      prompt: note,
+      note,
+      source: "talk",
+    });
+    this.lastError = null;
+  }
+
+  handleIdeaApprove(id: string) {
+    const match = this.improvementIdeas.find((entry) => entry.id === id);
+    if (!match) return;
+    const next = this.improvementIdeas.map((entry) =>
+      entry.id === id ? { ...entry, status: "approved" as const } : entry,
+    );
+    this.persistImprovementIdeas(next);
+    this.buildTitle = match.title;
+    this.buildPrompt = match.prompt;
+    this.buildRefinePrompt =
+      "Turn this approved idea into a polished, everyday-friendly app people will actually enjoy using.";
+    this.buildStatus = `Approved "${match.title}" and sent it to Build. Generate when you're ready.`;
+    this.setTab("build");
+  }
+
+  handleIdeaImplemented(id: string) {
+    const next = this.improvementIdeas.map((entry) =>
+      entry.id === id ? { ...entry, status: "implemented" as const } : entry,
+    );
+    this.persistImprovementIdeas(next);
+  }
+
+  handleIdeaDelete(id: string) {
+    this.persistImprovementIdeas(
+      this.improvementIdeas.filter((entry) => entry.id !== id),
+    );
   }
 
   private pushBuildHistory(source: BuildHistoryEntry["source"]) {
@@ -1046,6 +1127,13 @@ export class ClawdisApp extends LitElement {
         js: this.buildCode.js,
         overwrite: true,
       })) as { path?: string; files?: string[] };
+      this.persistImprovementIdeas(
+        this.improvementIdeas.map((entry) =>
+          entry.status === "approved" && entry.title === this.buildTitle
+            ? { ...entry, status: "implemented" as const }
+            : entry,
+        ),
+      );
       this.buildStatus = `Created Vite app scaffold in ${res.path ?? `apps/generated/${slug}`}.`;
     } catch (err) {
       this.buildStatus = `Repo scaffold failed: ${String(err)}`;
@@ -1191,5 +1279,17 @@ function extractMessageText(message: unknown): string | null {
     if (parts.length) return parts.join("\n");
   }
   return typeof row.text === "string" ? row.text : null;
+}
+
+function summarizeIdeaTitle(text: string) {
+  const cleaned = text
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[.!?]+$/, "");
+  if (!cleaned) return "New idea";
+  if (cleaned.length <= 48) return cleaned;
+  const words = cleaned.split(" ");
+  const short = words.slice(0, 7).join(" ");
+  return short.length > 48 ? `${short.slice(0, 45)}...` : `${short}...`;
 }
 

@@ -8,7 +8,12 @@ import {
   titleForTab,
   type Tab,
 } from "./navigation";
-import type { BuildDraftRecord, BuildHistoryEntry, UiSettings } from "./storage";
+import type {
+  BuildDraftRecord,
+  BuildHistoryEntry,
+  ImprovementIdea,
+  UiSettings,
+} from "./storage";
 import type { ThemeMode } from "./theme";
 import type { ThemeTransitionContext } from "./theme-transition";
 import type {
@@ -115,6 +120,8 @@ export type AppViewState = {
   buildActiveScreen: "home" | "details" | "settings";
   buildDrafts: BuildDraftRecord[];
   buildHistory: BuildHistoryEntry[];
+  improvementIdeas: ImprovementIdea[];
+  coreIdeaDraft: string;
   buildSelectedDraftId: string | null;
   buildGenerating: boolean;
   buildStatus: string | null;
@@ -209,6 +216,11 @@ export type AppViewState = {
   handleBuildRestoreHistory: (id: string) => void;
   handleBuildNewDraft: () => void;
   handleBuildDeleteDraft: (id: string) => void;
+  handleCoreIdeaCreate: () => void;
+  handleTalkIdeaCreate: () => void;
+  handleIdeaApprove: (id: string) => void;
+  handleIdeaImplemented: (id: string) => void;
+  handleIdeaDelete: (id: string) => void;
   handlePermission: (scope: PermissionScope, enabled: boolean, duration: GrantDuration) => void;
   handleMemoryCreate: (input: {
     title: string;
@@ -238,16 +250,9 @@ export function renderApp(state: AppViewState) {
   const presenceCount = state.presenceEntries.length;
   const sessionsCount = state.sessionsResult?.count ?? null;
   const cronNext = state.cronStatus?.nextWakeAtMs ?? null;
-  const hasConnectedMobileNode = state.nodes.some((n) => {
-    if (!Boolean(n.connected)) return false;
-    const p = typeof n.platform === "string" ? n.platform.trim().toLowerCase() : "";
-    return p.startsWith("ios") || p.startsWith("ipados") || p.startsWith("android");
-  });
   const chatDisabledReason = !state.connected
     ? "Disconnected from gateway."
-    : hasConnectedMobileNode
-      ? null
-      : "No connected iOS/Android node — Web Chat + Talk are disabled.";
+    : null;
 
   const linkedProviders = countLinkedProviders(state.providersSnapshot);
   const timeline = state.eventLog.slice(0, 8);
@@ -463,7 +468,7 @@ export function renderApp(state: AppViewState) {
               stream: state.chatStream,
               draft: state.chatMessage,
               connected: state.connected,
-              canSend: state.connected && hasConnectedMobileNode,
+              canSend: state.connected,
               disabledReason: chatDisabledReason,
               sessions: state.sessionsResult,
               eventLog: timeline,
@@ -471,6 +476,7 @@ export function renderApp(state: AppViewState) {
               onRefresh: () => loadChatHistory(state),
               onDraftChange: (next) => (state.chatMessage = next),
               onSend: () => state.handleSendChat(),
+              onCreateIdea: () => state.handleTalkIdeaCreate(),
               actionCards: state.cognitive.actions.slice(0, 4),
               voice: state.cognitive.voice,
               voiceSupported: state.voiceSupported,
@@ -574,8 +580,15 @@ export function renderApp(state: AppViewState) {
                 loading: state.configLoading,
                 saving: state.configSaving,
                 connected: state.connected,
+                improvementIdeas: state.improvementIdeas,
+                ideaDraft: state.coreIdeaDraft,
                 onSettingsChange: (next) => state.applySettings(next),
                 onPasswordChange: (next) => (state.password = next),
+                onIdeaDraftChange: (next) => (state.coreIdeaDraft = next),
+                onIdeaCreate: () => state.handleCoreIdeaCreate(),
+                onIdeaApprove: (id) => state.handleIdeaApprove(id),
+                onIdeaImplemented: (id) => state.handleIdeaImplemented(id),
+                onIdeaDelete: (id) => state.handleIdeaDelete(id),
                 onRawChange: (next) => (state.configRaw = next),
                 onReload: () => loadConfig(state),
                 onSave: () => saveConfig(state),
@@ -808,3 +821,5 @@ function renderMonitorIcon() {
     </svg>
   `;
 }
+
+

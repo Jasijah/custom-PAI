@@ -25,6 +25,7 @@ export type ChatProps = {
   onRefresh: () => void;
   onDraftChange: (next: string) => void;
   onSend: () => void;
+  onCreateIdea: () => void;
   actionCards: ActionCard[];
   voice: VoicePrefs;
   voiceSupported: boolean;
@@ -45,7 +46,7 @@ export function renderChat(props: ChatProps) {
   const inspectorEvents = props.eventLog.filter((entry) => entry.event === "chat").slice(0, 4);
   const composePlaceholder = (() => {
     if (!props.connected) return "Connect to your gateway to begin.";
-    if (!props.canSend) return "Connect a mobile node to unlock talk and voice.";
+    if (!props.canSend) return "Talk will be ready as soon as the gateway reconnects.";
     return `Ask anything, plan your day, or tell ${props.assistantName} what matters.`;
   })();
   const quickPrompts = [
@@ -463,4 +464,6 @@ function isToolResultMessage(message: unknown): boolean {
   const role = typeof m.role === "string" ? m.role.toLowerCase() : "";
   return role === "toolresult" || role === "tool_result";
 }
+
+
 

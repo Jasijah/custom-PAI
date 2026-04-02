@@ -1,6 +1,7 @@
 const KEY = "clawdis.control.settings.v1";
 const BUILD_DRAFTS_KEY = "clawdis.control.build-drafts.v1";
 const BUILD_HISTORY_KEY = "clawdis.control.build-history.v1";
+const IMPROVEMENT_IDEAS_KEY = "clawdis.control.improvement-ideas.v1";
 
 import type { ThemeMode } from "./theme";
 
@@ -47,6 +48,16 @@ export type BuildHistoryEntry = {
   js: string;
   createdAt: number;
   source: "starter" | "generate" | "refine" | "manual";
+};
+
+export type ImprovementIdea = {
+  id: string;
+  title: string;
+  prompt: string;
+  note: string;
+  source: "core" | "talk";
+  status: "suggested" | "approved" | "implemented";
+  createdAt: number;
 };
 
 export function loadSettings(): UiSettings {
@@ -148,4 +159,20 @@ export function loadBuildHistory(): BuildHistoryEntry[] {
 
 export function saveBuildHistory(next: BuildHistoryEntry[]) {
   localStorage.setItem(BUILD_HISTORY_KEY, JSON.stringify(next));
+}
+
+export function loadImprovementIdeas(): ImprovementIdea[] {
+  try {
+    const raw = localStorage.getItem(IMPROVEMENT_IDEAS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as ImprovementIdea[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch {
+    return [];
+  }
+}
+
+export function saveImprovementIdeas(next: ImprovementIdea[]) {
+  localStorage.setItem(IMPROVEMENT_IDEAS_KEY, JSON.stringify(next));
 }
