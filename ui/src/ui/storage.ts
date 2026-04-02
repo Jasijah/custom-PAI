@@ -1,5 +1,6 @@
 const KEY = "clawdis.control.settings.v1";
 const BUILD_DRAFTS_KEY = "clawdis.control.build-drafts.v1";
+const BUILD_HISTORY_KEY = "clawdis.control.build-history.v1";
 
 import type { ThemeMode } from "./theme";
 
@@ -28,6 +29,24 @@ export type BuildDraftRecord = {
   css: string;
   js: string;
   updatedAt: number;
+};
+
+export type BuildHistoryEntry = {
+  id: string;
+  title: string;
+  prompt: string;
+  refinePrompt: string;
+  palette: "sunrise" | "ocean" | "forest" | "graphite";
+  layout: "dashboard" | "mobile" | "studio";
+  screens: {
+    home: string;
+    details: string;
+    settings: string;
+  };
+  css: string;
+  js: string;
+  createdAt: number;
+  source: "starter" | "generate" | "refine" | "manual";
 };
 
 export function loadSettings(): UiSettings {
@@ -113,4 +132,20 @@ export function loadBuildDrafts(): BuildDraftRecord[] {
 
 export function saveBuildDrafts(next: BuildDraftRecord[]) {
   localStorage.setItem(BUILD_DRAFTS_KEY, JSON.stringify(next));
+}
+
+export function loadBuildHistory(): BuildHistoryEntry[] {
+  try {
+    const raw = localStorage.getItem(BUILD_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as BuildHistoryEntry[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch {
+    return [];
+  }
+}
+
+export function saveBuildHistory(next: BuildHistoryEntry[]) {
+  localStorage.setItem(BUILD_HISTORY_KEY, JSON.stringify(next));
 }

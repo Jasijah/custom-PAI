@@ -3591,11 +3591,12 @@ export async function startGatewayServer(
             };
           }
 
-          const p = params as {
-            sessionKey: string;
-            message: string;
-            thinking?: string;
-            deliver?: boolean;
+            const p = params as {
+              sessionKey: string;
+              message: string;
+              extraSystemPrompt?: string;
+              thinking?: string;
+              deliver?: boolean;
             attachments?: Array<{
               type?: string;
               mimeType?: string;
@@ -3692,10 +3693,11 @@ export async function startGatewayServer(
             }
 
             await agentCommand(
-              {
-                message: messageWithAttachments,
-                sessionId,
-                thinking: p.thinking,
+                {
+                  message: messageWithAttachments,
+                  extraSystemPrompt: p.extraSystemPrompt,
+                  sessionId,
+                  thinking: p.thinking,
                 deliver: p.deliver,
                 timeout: Math.ceil(timeoutMs / 1000).toString(),
                 surface: `Node(${nodeId})`,
@@ -5057,11 +5059,12 @@ export async function startGatewayServer(
                 );
                 break;
               }
-              const p = params as {
-                sessionKey: string;
-                message: string;
-                thinking?: string;
-                deliver?: boolean;
+                const p = params as {
+                  sessionKey: string;
+                  message: string;
+                  extraSystemPrompt?: string;
+                  thinking?: string;
+                  deliver?: boolean;
                 attachments?: Array<{
                   type?: string;
                   mimeType?: string;
@@ -5154,10 +5157,11 @@ export async function startGatewayServer(
                 }
 
                 await agentCommand(
-                  {
-                    message: messageWithAttachments,
-                    sessionId,
-                    thinking: p.thinking,
+                    {
+                      message: messageWithAttachments,
+                      extraSystemPrompt: p.extraSystemPrompt,
+                      sessionId,
+                      thinking: p.thinking,
                     deliver: p.deliver,
                     timeout: Math.ceil(timeoutMs / 1000).toString(),
                     surface: "WebChat",

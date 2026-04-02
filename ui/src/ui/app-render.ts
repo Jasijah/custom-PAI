@@ -8,7 +8,7 @@ import {
   titleForTab,
   type Tab,
 } from "./navigation";
-import type { BuildDraftRecord, UiSettings } from "./storage";
+import type { BuildDraftRecord, BuildHistoryEntry, UiSettings } from "./storage";
 import type { ThemeMode } from "./theme";
 import type { ThemeTransitionContext } from "./theme-transition";
 import type {
@@ -114,6 +114,7 @@ export type AppViewState = {
   };
   buildActiveScreen: "home" | "details" | "settings";
   buildDrafts: BuildDraftRecord[];
+  buildHistory: BuildHistoryEntry[];
   buildSelectedDraftId: string | null;
   buildGenerating: boolean;
   buildStatus: string | null;
@@ -205,6 +206,7 @@ export type AppViewState = {
   handleBuildExport: () => void;
   handleBuildScaffold: () => Promise<void>;
   handleBuildSelectDraft: (id: string) => void;
+  handleBuildRestoreHistory: (id: string) => void;
   handleBuildNewDraft: () => void;
   handleBuildDeleteDraft: (id: string) => void;
   handlePermission: (scope: PermissionScope, enabled: boolean, duration: GrantDuration) => void;
@@ -491,10 +493,11 @@ export function renderApp(state: AppViewState) {
                 refinePrompt: state.buildRefinePrompt,
                 palette: state.buildPalette,
               layout: state.buildLayout,
-              code: state.buildCode,
-              activeScreen: state.buildActiveScreen,
-              drafts: state.buildDrafts,
-              selectedDraftId: state.buildSelectedDraftId,
+                code: state.buildCode,
+                activeScreen: state.buildActiveScreen,
+                drafts: state.buildDrafts,
+                history: state.buildHistory,
+                selectedDraftId: state.buildSelectedDraftId,
               generating: state.buildGenerating,
                 status: state.buildStatus,
                 onTitleChange: (next) => (state.buildTitle = next),
@@ -517,9 +520,10 @@ export function renderApp(state: AppViewState) {
                 onRefine: () => state.handleBuildRefine(),
                 onSaveDraft: () => state.handleBuildSaveDraft(),
               onExport: () => state.handleBuildExport(),
-              onScaffold: () => state.handleBuildScaffold(),
-              onSelectDraft: (id) => state.handleBuildSelectDraft(id),
-              onNewDraft: () => state.handleBuildNewDraft(),
+                onScaffold: () => state.handleBuildScaffold(),
+                onSelectDraft: (id) => state.handleBuildSelectDraft(id),
+                onRestoreHistory: (id) => state.handleBuildRestoreHistory(id),
+                onNewDraft: () => state.handleBuildNewDraft(),
               onDeleteDraft: (id) => state.handleBuildDeleteDraft(id),
             })
           : nothing}

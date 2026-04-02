@@ -41,7 +41,10 @@ export async function loadChatHistory(state: ChatState) {
   }
 }
 
-export async function sendChat(state: ChatState) {
+export async function sendChat(
+  state: ChatState,
+  extraSystemPrompt?: string,
+) {
   if (!state.client || !state.connected) return;
   const msg = state.chatMessage.trim();
   if (!msg) return;
@@ -56,6 +59,7 @@ export async function sendChat(state: ChatState) {
     await state.client.request("chat.send", {
       sessionKey: state.sessionKey,
       message: msg,
+      extraSystemPrompt,
       deliver: false,
       idempotencyKey: runId,
     });

@@ -48,6 +48,7 @@ import { normalizeE164 } from "../utils.js";
 
 type AgentCommandOpts = {
   message: string;
+  extraSystemPrompt?: string;
   to?: string;
   sessionId?: string;
   thinking?: string;
@@ -355,17 +356,18 @@ export async function agentCommand(
         if (!raw) return undefined;
         return raw === "imsg" ? "imessage" : raw;
       })();
-    result = await runEmbeddedPiAgent({
-      sessionId,
-      sessionKey,
-      surface,
-      sessionFile,
-      workspaceDir,
-      config: cfg,
-      skillsSnapshot,
-      prompt: body,
-      provider,
-      model,
+      result = await runEmbeddedPiAgent({
+        sessionId,
+        sessionKey,
+        surface,
+        sessionFile,
+        workspaceDir,
+        config: cfg,
+        skillsSnapshot,
+        prompt: body,
+        extraSystemPrompt: opts.extraSystemPrompt,
+        provider,
+        model,
       thinkLevel: resolvedThinkLevel,
       verboseLevel: resolvedVerboseLevel,
       timeoutMs,

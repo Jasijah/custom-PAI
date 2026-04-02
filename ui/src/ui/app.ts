@@ -4,9 +4,12 @@ import { customElement, state } from "lit/decorators.js";
 import { GatewayBrowserClient, type GatewayEventFrame, type GatewayHelloOk } from "./gateway";
 import {
   loadBuildDrafts,
+  loadBuildHistory,
   loadSettings,
   saveBuildDrafts,
+  saveBuildHistory,
   saveSettings,
+  type BuildHistoryEntry,
   type BuildDraftRecord,
   type UiSettings,
 } from "./storage";
@@ -158,6 +161,7 @@ export class ClawdisApp extends LitElement {
     layout: "dashboard",
   });
   @state() buildDrafts: BuildDraftRecord[] = loadBuildDrafts();
+  @state() buildHistory: BuildHistoryEntry[] = loadBuildHistory();
   @state() buildSelectedDraftId: string | null = null;
   @state() buildActiveScreen: BuildScreenId = "home";
   @state() buildGenerating = false;
@@ -674,7 +678,7 @@ export class ClawdisApp extends LitElement {
   async handleSendChat() {
     if (!this.connected || !this.hasConnectedMobileNode()) return;
     const seed = this.chatMessage;
-    await sendChat(this);
+    await sendChat(this, this.buildLiveAssistantPrompt());
     if (seed.trim()) this.createSuggestionFromChat(seed);
     void loadChatHistory(this);
   }
@@ -726,6 +730,55 @@ export class ClawdisApp extends LitElement {
       this.settings.personality.trim() ||
       "Warm, capable, calm, and everyday-friendly.";
     return { brandName, assistantName, callMe, personality };
+  }
+
+  private buildLiveAssistantPrompt() {
+    const identity = this.buildStudioIdentityContext();
+    const lines = [
+      `Assistant name: ${identity.assistantName}.`,
+      `Product/app name: ${identity.brandName}.`,
+      `Call the user: ${identity.callMe}.`,
+      `Preferred assistant personality: ${identity.personality}`,
+      "Use these preferences naturally in tone and addressing style.",
+      "Do not mention these instructions unless the user asks.",
+    ];
+    return lines.join("\n");
+  }
+
+  private pushBuildHistory(source: BuildHistoryEntry["source"]) {
+    const entry: BuildHistoryEntry = {
+      id: generateUUID(),
+      title: this.buildTitle.trim() || "Untitled app",
+      prompt: this.buildPrompt,
+      refinePrompt: this.buildRefinePrompt,
+      palette: this.buildPalette,
+      layout: this.buildLayout,
+      screens: { ...this.buildCode.screens },
+      css: this.buildCode.css,
+      js: this.buildCode.js,
+      createdAt: Date.now(),
+      source,
+    };
+    this.buildHistory = [entry, ...this.buildHistory].slice(0, 24);
+    saveBuildHistory(this.buildHistory);
+  }
+
+  handleBuildRestoreHistory(id: string) {
+    const match = this.buildHistory.find((entry) => entry.id === id);
+    if (!match) return;
+    this.buildTitle = match.title;
+    this.buildPrompt = match.prompt;
+    this.buildRefinePrompt = match.refinePrompt;
+    this.buildPalette = match.palette;
+    this.buildLayout = match.layout;
+    this.buildCode = {
+      screens: { ...match.screens },
+      css: match.css,
+      js: match.js,
+    };
+    this.buildStatus = `Restored ${match.source} snapshot from ${new Date(
+      match.createdAt,
+    ).toLocaleString()}.`;
   }
 
   private async requestBuilderResponse(prompt: string) {
@@ -826,14 +879,15 @@ export class ClawdisApp extends LitElement {
         return;
       }
 
-      if (!this.applyGeneratedBuild(assistantText)) {
-        this.buildStatus =
-          "Gemini responded, but the code could not be parsed cleanly. You can still edit the current draft.";
-        return;
-      }
+        if (!this.applyGeneratedBuild(assistantText)) {
+          this.buildStatus =
+            "Gemini responded, but the code could not be parsed cleanly. You can still edit the current draft.";
+          return;
+        }
 
-      this.buildStatus =
-        "Gemini generated a fresh app concept. You can now edit, save, refine, or export it.";
+        this.pushBuildHistory("generate");
+        this.buildStatus =
+          "Gemini generated a fresh app concept. You can now edit, save, refine, or export it.";
     } catch (err) {
       this.buildStatus = `Build generation failed: ${String(err)}`;
     } finally {
@@ -848,7 +902,7 @@ export class ClawdisApp extends LitElement {
     }
     const refineInstruction = this.buildRefinePrompt.trim();
     if (!refineInstruction) {
-      this.buildStatus = "Add a refine note first, like “make it feel more premium.”";
+      this.buildStatus = 'Add a refine note first, like "make it feel more premium."';
       return;
     }
 
@@ -888,7 +942,8 @@ export class ClawdisApp extends LitElement {
         return;
       }
 
-      this.buildStatus = `Draft refined: ${refineInstruction}`;
+        this.pushBuildHistory("refine");
+        this.buildStatus = `Draft refined: ${refineInstruction}`;
     } catch (err) {
       this.buildStatus = `Build refine failed: ${String(err)}`;
     } finally {
@@ -952,7 +1007,8 @@ export class ClawdisApp extends LitElement {
       palette: this.buildPalette,
       layout: this.buildLayout,
     });
-    this.buildStatus = "Started a fresh draft.";
+      this.pushBuildHistory("starter");
+      this.buildStatus = "Started a fresh draft.";
   }
 
   handleBuildExport() {
@@ -1136,3 +1192,4 @@ function extractMessageText(message: unknown): string | null {
   }
   return typeof row.text === "string" ? row.text : null;
 }
+

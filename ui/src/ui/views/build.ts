@@ -1,6 +1,6 @@
 import { html, nothing } from "lit";
 
-import type { BuildDraftRecord } from "../storage";
+import type { BuildDraftRecord, BuildHistoryEntry } from "../storage";
 
 export type BuildPalette = "sunrise" | "ocean" | "forest" | "graphite";
 export type BuildLayout = "dashboard" | "mobile" | "studio";
@@ -25,6 +25,7 @@ export type BuildProps = {
   code: BuildCode;
   activeScreen: BuildScreenId;
   drafts: BuildDraftRecord[];
+  history: BuildHistoryEntry[];
   selectedDraftId: string | null;
   generating: boolean;
   status: string | null;
@@ -41,6 +42,7 @@ export type BuildProps = {
   onExport: () => void;
   onScaffold: () => void;
   onSelectDraft: (id: string) => void;
+  onRestoreHistory: (id: string) => void;
   onNewDraft: () => void;
   onDeleteDraft: (id: string) => void;
 };
@@ -180,7 +182,7 @@ export function renderBuild(props: BuildProps) {
             <textarea
               .value=${props.refinePrompt}
               @input=${(event: Event) => props.onRefinePromptChange((event.target as HTMLTextAreaElement).value)}
-              placeholder=${`Try “make it more premium” or “turn this into a mobile-first app for ${props.assistantName}.”`}
+              placeholder=${`Try "make it more premium" or "turn this into a mobile-first app for ${props.assistantName}."`}
               rows="4"
             ></textarea>
           </label>
@@ -218,6 +220,28 @@ export function renderBuild(props: BuildProps) {
           ></iframe>
         </section>
       </div>
+
+      <section class="card card-soft">
+        <div class="section-title">Refine History</div>
+        <div class="section-sub">Restore a previous version if a refinement drifts away from what you wanted.</div>
+        <div class="builder-draft-list" style="margin-top: 16px;">
+          ${props.history.length
+            ? props.history.map(
+                (entry) => html`
+                  <div class="builder-draft-card">
+                    <button class="builder-draft-card__button" @click=${() => props.onRestoreHistory(entry.id)}>
+                      <span class="builder-draft-card__title">${entry.title}</span>
+                      <span class="builder-draft-card__sub">
+                        ${entry.source} · ${new Date(entry.createdAt).toLocaleString()}
+                      </span>
+                    </button>
+                    <button class="btn" @click=${() => props.onRestoreHistory(entry.id)}>Restore</button>
+                  </div>
+                `,
+              )
+            : html`<div class="muted">Generate or refine a draft to build a restore history.</div>`}
+        </div>
+      </section>
 
       <section class="builder-code">
         <label class="builder-code__block field">
@@ -523,3 +547,4 @@ function escapeHtml(value: string) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
+

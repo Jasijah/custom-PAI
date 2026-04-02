@@ -2,6 +2,29 @@ import { html, nothing } from "lit";
 
 import type { UiSettings } from "../storage";
 
+const PERSONALITY_PRESETS = [
+  {
+    label: "Warm",
+    value:
+      "Warm, encouraging, calm, and emotionally intelligent. Helpful without sounding robotic or overly technical.",
+  },
+  {
+    label: "Direct",
+    value:
+      "Clear, concise, decisive, and practical. Skip fluff, keep it useful, and get to the point kindly.",
+  },
+  {
+    label: "Strategic",
+    value:
+      "Thoughtful, structured, and forward-looking. Help with tradeoffs, planning, and prioritizing what matters most.",
+  },
+  {
+    label: "Playful",
+    value:
+      "Light, witty, and upbeat while still being competent and grounded. Friendly without becoming distracting.",
+  },
+] as const;
+
 export type CoreProps = {
   settings: UiSettings;
   password: string;
@@ -82,6 +105,22 @@ export function renderCore(props: CoreProps) {
             ></textarea>
           </label>
         </div>
+        <div class="chip-row" style="margin-top: 14px;">
+          ${PERSONALITY_PRESETS.map(
+            (preset) => html`
+              <button
+                class="chip action"
+                @click=${() =>
+                  props.onSettingsChange({
+                    ...props.settings,
+                    personality: preset.value,
+                  })}
+              >
+                ${preset.label}
+              </button>
+            `,
+          )}
+        </div>
       </div>
 
       <div class="card card-soft">
@@ -94,7 +133,7 @@ export function renderCore(props: CoreProps) {
             <div class="core-preview__kicker">${brandName}</div>
             <div class="core-preview__headline">${assistantName}</div>
             <div class="core-preview__body">
-              Hi ${callMe}. I’m ${assistantName}, and I’ll keep things calm, clear, and useful.
+              Hi ${callMe}. I'm ${assistantName}, and I'll keep things calm, clear, and useful.
             </div>
           </div>
           <div class="callout">
