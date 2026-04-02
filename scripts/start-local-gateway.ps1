@@ -91,13 +91,13 @@ $nodePath = Find-Node
 Set-Content -Path $stdoutLog -Value ''
 Set-Content -Path $stderrLog -Value ''
 
-$process = Start-Process \
-  -FilePath $nodePath \
-  -ArgumentList @($distEntry, 'gateway', '--port', $Port.ToString(), '--bind', 'loopback') \
-  -WorkingDirectory $repoRoot \
-  -WindowStyle Hidden \
-  -RedirectStandardOutput $stdoutLog \
-  -RedirectStandardError $stderrLog \
+$process = Start-Process `
+  -FilePath $nodePath `
+  -ArgumentList @($distEntry, 'gateway', '--port', $Port.ToString(), '--bind', 'loopback') `
+  -WorkingDirectory $repoRoot `
+  -WindowStyle Hidden `
+  -RedirectStandardOutput $stdoutLog `
+  -RedirectStandardError $stderrLog `
   -PassThru
 
 Set-Content -Path $pidFile -Value $process.Id
