@@ -109,6 +109,8 @@ export type AppViewState = {
   chatThinkingLevel: string | null;
   buildPrompt: string;
   buildRefinePrompt: string;
+  buildImagePrompt: string;
+  buildImageSvg: string;
   buildTitle: string;
   buildPalette: "sunrise" | "ocean" | "forest" | "graphite";
   buildLayout: "dashboard" | "mobile" | "studio";
@@ -212,6 +214,8 @@ export type AppViewState = {
   handleSendChat: () => Promise<void>;
   handleBuildGenerate: () => Promise<void>;
   handleBuildRefine: () => Promise<void>;
+  handleBuildGenerateImage: () => Promise<void>;
+  handleBuildExportImage: () => void;
   handleBuildSaveDraft: () => void;
   handleBuildExport: () => void;
   handleBuildScaffold: () => Promise<void>;
@@ -285,6 +289,10 @@ export function renderApp(state: AppViewState) {
           <div class="pill subtle">
             <span>Linked apps</span>
             <span class="mono">${linkedProviders}</span>
+          </div>
+          <div class="pill subtle">
+            <span>Brain</span>
+            <span class="mono">${state.inferActiveInferenceMode() === "local" ? "Local" : state.inferActiveInferenceMode() === "api" ? "Gemini" : "Unknown"}</span>
           </div>
           ${renderThemeToggle(state)}
         </div>
@@ -479,9 +487,13 @@ export function renderApp(state: AppViewState) {
               sessions: state.sessionsResult,
               eventLog: timeline,
               providersSnapshot: state.providersSnapshot,
+              activeInferenceMode: state.inferActiveInferenceMode(),
+              activeModelRef: state.inferActiveModelRef(),
               onRefresh: () => loadChatHistory(state),
               onDraftChange: (next) => (state.chatMessage = next),
               onSend: () => state.handleSendChat(),
+              onSwitchBrain: (mode) => state.handleApplyInferenceMode(mode),
+              onOpenCore: () => state.setTab("config"),
               onCreateIdea: () => state.handleTalkIdeaCreate(),
               actionCards: state.cognitive.actions.slice(0, 4),
               voice: state.cognitive.voice,
@@ -500,9 +512,13 @@ export function renderApp(state: AppViewState) {
             ? renderBuild({
                 brandName: state.settings.brandName || state.settings.assistantName || "Miya",
                 assistantName: state.settings.assistantName || state.settings.brandName || "Miya",
+                activeModeLabel:
+                  state.inferActiveInferenceMode() === "local" ? "Local" : "Gemini",
                 title: state.buildTitle,
                 prompt: state.buildPrompt,
                 refinePrompt: state.buildRefinePrompt,
+                imagePrompt: state.buildImagePrompt,
+                imageSvg: state.buildImageSvg,
                 palette: state.buildPalette,
               layout: state.buildLayout,
                 code: state.buildCode,
@@ -515,6 +531,7 @@ export function renderApp(state: AppViewState) {
                 onTitleChange: (next) => (state.buildTitle = next),
                 onPromptChange: (next) => (state.buildPrompt = next),
                 onRefinePromptChange: (next) => (state.buildRefinePrompt = next),
+                onImagePromptChange: (next) => (state.buildImagePrompt = next),
                 onPaletteChange: (next) => (state.buildPalette = next),
               onLayoutChange: (next) => (state.buildLayout = next),
               onScreenChange: (next) => (state.buildActiveScreen = next),
@@ -530,6 +547,8 @@ export function renderApp(state: AppViewState) {
                 },
                 onGenerate: () => state.handleBuildGenerate(),
                 onRefine: () => state.handleBuildRefine(),
+                onGenerateImage: () => state.handleBuildGenerateImage(),
+                onExportImage: () => state.handleBuildExportImage(),
                 onSaveDraft: () => state.handleBuildSaveDraft(),
               onExport: () => state.handleBuildExport(),
                 onScaffold: () => state.handleBuildScaffold(),

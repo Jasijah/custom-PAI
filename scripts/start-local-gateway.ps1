@@ -44,6 +44,46 @@ function Test-LocalGateway {
   }
 }
 
+function Get-PortOwners {
+  param([int]$TargetPort)
+
+  $owners = @()
+
+  try {
+    $owners += Get-NetTCPConnection -LocalPort $TargetPort -State Listen -ErrorAction Stop |
+      Select-Object -ExpandProperty OwningProcess -Unique
+  } catch {
+  }
+
+  if (-not $owners) {
+    $netstatLines = netstat -ano -p tcp | Select-String -Pattern (":$TargetPort\\s")
+    foreach ($line in $netstatLines) {
+      $parts = ($line.ToString() -split '\s+') | Where-Object { $_ }
+      if ($parts.Length -ge 5) {
+        $owners += $parts[-1]
+      }
+    }
+  }
+
+  return @($owners | Where-Object { $_ -match '^\d+$' } | Select-Object -Unique)
+}
+
+function Test-IsMiyaProcess {
+  param([int]$Id)
+
+  try {
+    $process = Get-CimInstance Win32_Process -Filter "ProcessId = $Id" -ErrorAction Stop
+    $commandLine = [string]$process.CommandLine
+    $executable = [string]$process.ExecutablePath
+    return $commandLine.Contains($distEntry) -or
+      $commandLine.Contains($repoRoot) -or
+      $commandLine.Contains(" gateway ") -or
+      $executable.EndsWith("node.exe", [System.StringComparison]::OrdinalIgnoreCase)
+  } catch {
+    return $false
+  }
+}
+
 function Find-Node {
   $candidates = @()
   $command = Get-Command node -ErrorAction SilentlyContinue
@@ -66,13 +106,13 @@ function Find-Node {
 
 function Stop-ExistingGateway {
   if (-not (Test-Path $pidFile)) {
-    return
+    return $false
   }
 
   $pidValue = (Get-Content $pidFile -Raw).Trim()
   if (-not $pidValue) {
     Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
-    return
+    return $false
   }
 
   $existing = Get-Process -Id ([int]$pidValue) -ErrorAction SilentlyContinue
@@ -82,6 +122,26 @@ function Stop-ExistingGateway {
   }
 
   Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
+  return $true
+}
+
+function Stop-MiyaListenersOnPort {
+  param([int]$TargetPort)
+
+  $stopped = $false
+  foreach ($owner in (Get-PortOwners -TargetPort $TargetPort)) {
+    if (-not (Test-IsMiyaProcess -Id ([int]$owner))) {
+      throw "Port $TargetPort is already in use by process $owner, and it does not look like Miya. Close that app or choose another port."
+    }
+    Stop-Process -Id ([int]$owner) -Force -ErrorAction SilentlyContinue
+    $stopped = $true
+  }
+
+  if ($stopped) {
+    Start-Sleep -Seconds 1
+  }
+
+  return $stopped
 }
 
 if (-not (Test-Path $distEntry)) {
@@ -89,7 +149,8 @@ if (-not (Test-Path $distEntry)) {
 }
 
 if ($ForceRestart) {
-  Stop-ExistingGateway
+  $null = Stop-ExistingGateway
+  $null = Stop-MiyaListenersOnPort -TargetPort $Port
 }
 
 if (Test-LocalGateway -TargetPort $Port) {
@@ -134,6 +195,38 @@ for ($attempt = 0; $attempt -lt 20; $attempt++) {
       Start-Process "http://127.0.0.1:$Port/"
     }
     exit 0
+  }
+}
+
+if (-not $ForceRestart) {
+  $null = Stop-MiyaListenersOnPort -TargetPort $Port
+  Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs -WorkingDirectory $repoRoot -WindowStyle Hidden | Out-Null
+
+  for ($attempt = 0; $attempt -lt 20; $attempt++) {
+    Start-Sleep -Milliseconds 750
+
+    if (Test-LocalGateway -TargetPort $Port) {
+      $ownerPid = $null
+      try {
+        $ownerPid = (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop |
+          Select-Object -First 1 -ExpandProperty OwningProcess)
+      } catch {
+      }
+      if (-not $ownerPid) {
+        $netstatLine = netstat -ano -p tcp | Select-String -Pattern (":$Port\\s+.*LISTENING\\s+(\\d+)$") | Select-Object -First 1
+        if ($netstatLine -and $netstatLine.Matches.Count -gt 0) {
+          $ownerPid = $netstatLine.Matches[0].Groups[1].Value
+        }
+      }
+      if ($ownerPid) {
+        Set-Content -Path $pidFile -Value $ownerPid
+      }
+      Write-Host "Miya is ready at http://127.0.0.1:$Port/"
+      if (-not $NoBrowser) {
+        Start-Process "http://127.0.0.1:$Port/"
+      }
+      exit 0
+    }
   }
 }
 

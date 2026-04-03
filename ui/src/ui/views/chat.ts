@@ -8,6 +8,8 @@ import { formatToolDetail, resolveToolDisplay } from "../tool-display";
 export type ChatProps = {
   assistantName: string;
   callMe: string;
+  activeInferenceMode: "api" | "local" | "unknown";
+  activeModelRef: string | null;
   sessionKey: string;
   onSessionKeyChange: (next: string) => void;
   thinkingLevel: string | null;
@@ -25,6 +27,8 @@ export type ChatProps = {
   onRefresh: () => void;
   onDraftChange: (next: string) => void;
   onSend: () => void;
+  onSwitchBrain: (mode: "api" | "local") => void;
+  onOpenCore: () => void;
   onCreateIdea: () => void;
   actionCards: ActionCard[];
   voice: VoicePrefs;
@@ -53,9 +57,15 @@ export function renderChat(props: ChatProps) {
     "Help me plan today",
     "Summarize what changed recently",
     "Create three next steps for my project",
-    "Check whether Gemini is still connected",
+    "Check whether my current brain is still connected",
   ];
   const geminiConnected = Boolean(props.connected && props.providersSnapshot);
+  const brainLabel =
+    props.activeInferenceMode === "local"
+      ? "Local model"
+      : props.activeInferenceMode === "api"
+        ? "Gemini API"
+        : "Unknown";
 
   return html`
     <section class="chat-layout">
@@ -118,6 +128,20 @@ export function renderChat(props: ChatProps) {
               ${props.disabledReason}
             </div>`
           : nothing}
+
+        <div class="chat-brain-bar">
+          <div>
+            <div class="section-title">Brain</div>
+            <div class="section-sub">Switch between Gemini and local replies without leaving Talk.</div>
+          </div>
+          <div class="chat-brain-bar__actions">
+            <span class="pill">${brainLabel}</span>
+            ${props.activeModelRef ? html`<span class="pill subtle mono">${props.activeModelRef}</span>` : nothing}
+            <button class="btn" ?disabled=${!props.connected} @click=${() => props.onSwitchBrain("api")}>Use Gemini</button>
+            <button class="btn primary" ?disabled=${!props.connected} @click=${() => props.onSwitchBrain("local")}>Use local</button>
+            <button class="btn" @click=${props.onOpenCore}>Open Core</button>
+          </div>
+        </div>
 
         <div class="chat-chips">
           ${quickPrompts.map(
@@ -349,7 +373,7 @@ function renderMessage(
           ${toolCards.map((card) => renderToolCard(card))}
         </div>
         <div class="chat-stamp mono">
-          ${displayWho}${timestamp ? html` · ${timestamp}` : nothing}
+          ${displayWho}${timestamp ? html` Â· ${timestamp}` : nothing}
         </div>
       </div>
     </div>

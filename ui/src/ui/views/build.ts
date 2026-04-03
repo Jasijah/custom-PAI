@@ -17,9 +17,12 @@ export type BuildCode = {
 export type BuildProps = {
   brandName: string;
   assistantName: string;
+  activeModeLabel: string;
   title: string;
   prompt: string;
   refinePrompt: string;
+  imagePrompt: string;
+  imageSvg: string;
   palette: BuildPalette;
   layout: BuildLayout;
   code: BuildCode;
@@ -32,12 +35,15 @@ export type BuildProps = {
   onTitleChange: (next: string) => void;
   onPromptChange: (next: string) => void;
   onRefinePromptChange: (next: string) => void;
+  onImagePromptChange: (next: string) => void;
   onPaletteChange: (next: BuildPalette) => void;
   onLayoutChange: (next: BuildLayout) => void;
   onScreenChange: (next: BuildScreenId) => void;
   onCodeChange: (kind: "screen" | "css" | "js", next: string, screen?: BuildScreenId) => void;
   onGenerate: () => void;
   onRefine: () => void;
+  onGenerateImage: () => void;
+  onExportImage: () => void;
   onSaveDraft: () => void;
   onExport: () => void;
   onScaffold: () => void;
@@ -59,6 +65,13 @@ const QUICK_REFINES = [
   "Turn this into a mobile-first app",
   "Make the onboarding softer and simpler",
   "Reduce the visual clutter and increase clarity",
+];
+
+const QUICK_IMAGE_IDEAS = [
+  "A calm hero illustration with soft gradients and everyday-friendly energy",
+  "A premium app mascot portrait with a warm editorial style",
+  "A clean onboarding illustration for a personal assistant app",
+  "A product poster with bold typography and a mobile-first feel",
 ];
 
 const SCREEN_ORDER: BuildScreenId[] = ["home", "details", "settings"];
@@ -169,7 +182,7 @@ export function renderBuild(props: BuildProps) {
 
           <div class="builder-actions">
             <button class="btn primary" ?disabled=${props.generating} @click=${props.onGenerate}>
-              ${props.generating ? "Generating..." : "Generate with Gemini"}
+              ${props.generating ? "Generating..." : `Generate with ${props.activeModeLabel}`}
             </button>
             <button class="btn" ?disabled=${props.generating} @click=${props.onRefine}>Refine current draft</button>
             <button class="btn" @click=${props.onSaveDraft}>Save draft</button>
@@ -243,6 +256,43 @@ export function renderBuild(props: BuildProps) {
         </div>
       </section>
 
+      <section class="grid grid-cols-2">
+        <div class="card card-soft">
+          <div class="section-title">Concept Art</div>
+          <div class="section-sub">
+            Generate visual directions from a prompt. This uses your current brain and returns editable SVG artwork.
+          </div>
+          <label class="field" style="margin-top: 16px;">
+            <span>Image prompt</span>
+            <textarea
+              .value=${props.imagePrompt}
+              @input=${(event: Event) => props.onImagePromptChange((event.target as HTMLTextAreaElement).value)}
+              placeholder="Describe the artwork you want for this app or brand."
+              rows="5"
+            ></textarea>
+          </label>
+          <div class="builder-chip-row">
+            ${QUICK_IMAGE_IDEAS.map(
+              (idea) => html`<button class="chip action" @click=${() => props.onImagePromptChange(idea)}>${idea}</button>`,
+            )}
+          </div>
+          <div class="builder-actions" style="margin-top: 14px;">
+            <button class="btn primary" ?disabled=${props.generating} @click=${props.onGenerateImage}>
+              ${props.generating ? "Generating..." : "Generate artwork"}
+            </button>
+            <button class="btn" ?disabled=${!props.imageSvg.trim()} @click=${props.onExportImage}>Export SVG</button>
+          </div>
+        </div>
+
+        <div class="card card-soft">
+          <div class="section-title">Artwork Preview</div>
+          <div class="section-sub">A lightweight visual direction you can reuse in the generated app, landing page, or onboarding flow.</div>
+          ${props.imageSvg.trim()
+            ? html`<div class="builder-image-preview" .innerHTML=${props.imageSvg}></div>`
+            : html`<div class="callout" style="margin-top: 16px;">Generate artwork from a prompt to preview it here.</div>`}
+        </div>
+      </section>
+
       <section class="builder-code">
         <label class="builder-code__block field">
           <span>${screenLabel(props.activeScreen)} HTML</span>
@@ -261,6 +311,18 @@ export function renderBuild(props: BuildProps) {
       ${props.status ? html`<section class="callout">${props.status}</section>` : nothing}
     </section>
   `;
+}
+
+export function extractSvgMarkup(raw: string): string | null {
+  const cleaned = raw.trim();
+  if (!cleaned) return null;
+
+  const fenced = cleaned.match(/```(?:svg|xml)?\s*([\s\S]*?)```/i);
+  const candidate = fenced?.[1]?.trim() || cleaned;
+  const start = candidate.indexOf("<svg");
+  const end = candidate.lastIndexOf("</svg>");
+  if (start < 0 || end < start) return null;
+  return candidate.slice(start, end + "</svg>".length).trim();
 }
 
 export function createStarterBuild(props: {

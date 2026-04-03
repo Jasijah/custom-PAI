@@ -160,7 +160,7 @@ export function subtitleForTab(tab: Tab) {
     case "economy":
       return "Track how your assistant budget is allocated.";
     case "config":
-      return "Personalize your assistant's name, tone, and how it speaks to you.";
+      return "Personalize identity, switch brains, and tune how your assistant speaks to you.";
     case "debug":
       return "Raw snapshots, logs, and manual tools for troubleshooting.";
     default:

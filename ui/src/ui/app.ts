@@ -21,6 +21,7 @@ import { normalizePath, pathForTab, tabFromPath, type Tab } from "./navigation";
 import {
   buildStructuredExportFiles,
   createStarterBuild,
+  extractSvgMarkup,
   parseGeneratedBuildResponse,
   type BuildScreenId,
   type BuildCode,
@@ -154,6 +155,8 @@ export class ClawdisApp extends LitElement {
   @state() chatThinkingLevel: string | null = null;
   @state() buildPrompt = "Create a warm daily planner app with a focus timer, mood check-in, and a progress overview.";
   @state() buildRefinePrompt = "Make it feel more premium without making it harder to use.";
+  @state() buildImagePrompt = "A calm editorial illustration for Miya with warm light, soft gradients, and a helpful everyday mood.";
+  @state() buildImageSvg = "";
   @state() buildTitle = "Daily Planner";
   @state() buildPalette: "sunrise" | "ocean" | "forest" | "graphite" = "sunrise";
   @state() buildLayout: "dashboard" | "mobile" | "studio" = "dashboard";
@@ -726,6 +729,11 @@ export class ClawdisApp extends LitElement {
     return { brandName, assistantName, callMe, personality };
   }
 
+  private activeBrainLabel() {
+    const mode = this.inferActiveInferenceMode();
+    return mode === "local" ? "local" : "Gemini";
+  }
+
   private buildLiveAssistantPrompt() {
     const identity = this.buildStudioIdentityContext();
     const lines = [
@@ -840,6 +848,7 @@ export class ClawdisApp extends LitElement {
       mode === "local"
         ? `Local mode is ready to use once ${localBaseUrl} is serving ${localModelId}.`
         : `Gemini API is now the default brain again.`;
+    this.lastError = null;
   }
 
   private persistImprovementIdeas(next: ImprovementIdea[]) {
@@ -1031,6 +1040,17 @@ export class ClawdisApp extends LitElement {
     return true;
   }
 
+  private exportTextFile(filename: string, contents: string, mime = "text/plain;charset=utf-8") {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    const blob = new Blob([contents], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   async handleBuildGenerate() {
     if (!this.client || !this.connected) {
       this.buildStatus = "Connect to the gateway before generating with Gemini.";
@@ -1038,7 +1058,7 @@ export class ClawdisApp extends LitElement {
     }
 
     this.buildGenerating = true;
-    this.buildStatus = "Asking Gemini to generate app code...";
+    this.buildStatus = `Asking ${this.activeBrainLabel()} to generate app code...`;
     const identity = this.buildStudioIdentityContext();
     const prompt = [
       "You are generating a lightweight web app prototype.",
@@ -1059,19 +1079,19 @@ export class ClawdisApp extends LitElement {
       const assistantText = await this.requestBuilderResponse(prompt);
       if (!assistantText) {
         this.buildStatus =
-          "Gemini did not return app code yet. Try again in a moment.";
+          `${this.activeBrainLabel()} did not return app code yet. Try again in a moment.`;
         return;
       }
 
         if (!this.applyGeneratedBuild(assistantText)) {
           this.buildStatus =
-            "Gemini responded, but the code could not be parsed cleanly. You can still edit the current draft.";
+            `${this.activeBrainLabel()} responded, but the code could not be parsed cleanly. You can still edit the current draft.`;
           return;
         }
 
         this.pushBuildHistory("generate");
         this.buildStatus =
-          "Gemini generated a fresh app concept. You can now edit, save, refine, or export it.";
+          `${this.activeBrainLabel()} generated a fresh app concept. You can now edit, save, refine, or export it.`;
     } catch (err) {
       this.buildStatus = `Build generation failed: ${String(err)}`;
     } finally {
@@ -1091,7 +1111,7 @@ export class ClawdisApp extends LitElement {
     }
 
     this.buildGenerating = true;
-    this.buildStatus = "Refining the current draft with Gemini...";
+    this.buildStatus = `Refining the current draft with ${this.activeBrainLabel()}...`;
     const identity = this.buildStudioIdentityContext();
     const prompt = [
       "You are refining an existing lightweight web app prototype.",
@@ -1116,13 +1136,13 @@ export class ClawdisApp extends LitElement {
       const assistantText = await this.requestBuilderResponse(prompt);
       if (!assistantText) {
         this.buildStatus =
-          "Gemini did not return a refined draft yet. Try again in a moment.";
+          `${this.activeBrainLabel()} did not return a refined draft yet. Try again in a moment.`;
         return;
       }
 
       if (!this.applyGeneratedBuild(assistantText)) {
         this.buildStatus =
-          "Gemini replied, but the refined draft could not be parsed cleanly. Your current draft is unchanged.";
+          `${this.activeBrainLabel()} replied, but the refined draft could not be parsed cleanly. Your current draft is unchanged.`;
         return;
       }
 
@@ -1196,19 +1216,68 @@ export class ClawdisApp extends LitElement {
   }
 
   handleBuildExport() {
-    if (typeof window === "undefined" || typeof document === "undefined") return;
     const slug = (this.buildTitle || "app").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "app";
     const files = buildStructuredExportFiles(this.buildCode);
     for (const [name, contents] of Object.entries(files)) {
-      const blob = new Blob([contents], { type: "text/plain;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${slug}-${name}`;
-      link.click();
-      URL.revokeObjectURL(url);
+      this.exportTextFile(`${slug}-${name}`, contents);
     }
     this.buildStatus = "Exported structured files for all three screens.";
+  }
+
+  async handleBuildGenerateImage() {
+    if (!this.client || !this.connected) {
+      this.buildStatus = "Connect to the gateway before generating artwork.";
+      return;
+    }
+
+    const prompt = this.buildImagePrompt.trim() || this.buildPrompt.trim();
+    if (!prompt) {
+      this.buildStatus = "Add an image prompt first.";
+      return;
+    }
+
+    this.buildGenerating = true;
+    this.buildStatus = `Asking ${this.activeBrainLabel()} to create SVG artwork...`;
+    const identity = this.buildStudioIdentityContext();
+    const imageRequest = [
+      "Create a single polished SVG illustration.",
+      `App name: ${this.buildTitle || "New App"}`,
+      `Prompt: ${prompt}`,
+      `Palette: ${this.buildPalette}`,
+      `Layout inspiration: ${this.buildLayout}`,
+      `Brand context: The product surface is called ${identity.brandName}. The assistant is named ${identity.assistantName}.`,
+      `Tone context: ${identity.personality}`,
+      "Return SVG markup only.",
+      "Do not use markdown fences.",
+      "Keep the SVG self-contained with gradients, shapes, and text only.",
+      "Make it feel polished, friendly, and fit for everyday people.",
+    ].join("\n");
+
+    try {
+      const assistantText = await this.requestBuilderResponse(imageRequest);
+      const svg = assistantText ? extractSvgMarkup(assistantText) : null;
+      if (!svg) {
+        this.buildStatus = "The artwork response could not be turned into SVG yet. Try a simpler visual prompt.";
+        return;
+      }
+      this.buildImageSvg = svg;
+      this.buildStatus = "Artwork is ready. You can preview it, export it, or use it as design direction for the app.";
+    } catch (err) {
+      this.buildStatus = `Image generation failed: ${String(err)}`;
+    } finally {
+      this.buildGenerating = false;
+    }
+  }
+
+  handleBuildExportImage() {
+    if (!this.buildImageSvg.trim()) return;
+    const slug =
+      (this.buildTitle || "app")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "app";
+    this.exportTextFile(`${slug}-artwork.svg`, this.buildImageSvg, "image/svg+xml;charset=utf-8");
+    this.buildStatus = "Exported SVG artwork.";
   }
 
   async handleBuildScaffold() {
