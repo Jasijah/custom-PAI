@@ -1,60 +1,60 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Unbounded:wght@400;500;600&family=Work+Sans:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&family=Work+Sans:wght@400;500;600;700&display=swap");
 
 :root {
-  --bg: #050a12;
-  --bg-accent: #0a1422;
-  --bg-grad-1: #0f2b42;
-  --bg-grad-2: #0f362b;
-  --bg-overlay: rgba(255, 255, 255, 0.05);
-  --bg-glow: rgba(56, 211, 255, 0.22);
-  --panel: rgba(9, 20, 35, 0.74);
-  --panel-strong: rgba(12, 26, 44, 0.9);
-  --chrome: rgba(7, 16, 30, 0.65);
-  --chrome-strong: rgba(9, 20, 35, 0.8);
-  --text: rgba(227, 248, 255, 0.98);
-  --chat-text: rgba(223, 245, 255, 0.94);
-  --muted: rgba(136, 189, 212, 0.76);
-  --border: rgba(92, 218, 255, 0.2);
-  --border-strong: rgba(122, 232, 255, 0.34);
-  --accent: #5fd9ff;
-  --accent-2: #7af48d;
-  --ok: #2bd97f;
+  --bg: #07110f;
+  --bg-accent: #0d1715;
+  --bg-grad-1: #12312a;
+  --bg-grad-2: #163d34;
+  --bg-overlay: rgba(240, 255, 248, 0.035);
+  --bg-glow: rgba(120, 227, 193, 0.12);
+  --panel: rgba(9, 22, 19, 0.76);
+  --panel-strong: rgba(13, 29, 25, 0.92);
+  --chrome: rgba(10, 22, 19, 0.72);
+  --chrome-strong: rgba(11, 25, 21, 0.86);
+  --text: rgba(237, 248, 242, 0.98);
+  --chat-text: rgba(232, 245, 239, 0.95);
+  --muted: rgba(155, 191, 178, 0.72);
+  --border: rgba(129, 201, 178, 0.18);
+  --border-strong: rgba(171, 234, 212, 0.26);
+  --accent: #8ddfc0;
+  --accent-2: #64c8b1;
+  --ok: #6fd0a3;
   --warn: #f2c94c;
   --danger: #ff6b6b;
-  --focus: rgba(95, 217, 255, 0.32);
-  --grid-line: rgba(95, 217, 255, 0.07);
+  --focus: rgba(141, 223, 192, 0.2);
+  --grid-line: rgba(141, 223, 192, 0.04);
   --theme-switch-x: 50%;
   --theme-switch-y: 50%;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
   --font-body: "Work Sans", system-ui, sans-serif;
-  --font-display: "Unbounded", "Work Sans", serif;
+  --font-display: "Space Grotesk", "Work Sans", sans-serif;
   color-scheme: dark;
 }
 
 :root[data-theme="light"] {
-  --bg: #ebf5fb;
-  --bg-accent: #f8feff;
-  --bg-grad-1: #d5f0ff;
-  --bg-grad-2: #dcf7ea;
+  --bg: #eef8f4;
+  --bg-accent: #fbfffd;
+  --bg-grad-1: #d8f0e5;
+  --bg-grad-2: #e6f8f1;
   --bg-overlay: rgba(28, 32, 46, 0.05);
-  --bg-glow: rgba(94, 166, 255, 0.2);
+  --bg-glow: rgba(100, 200, 177, 0.16);
   --panel: rgba(255, 255, 255, 0.9);
   --panel-strong: rgba(255, 255, 255, 0.97);
   --chrome: rgba(255, 255, 255, 0.75);
   --chrome-strong: rgba(255, 255, 255, 0.88);
-  --text: rgba(27, 36, 50, 0.98);
-  --chat-text: rgba(36, 48, 66, 0.9);
-  --muted: rgba(80, 94, 114, 0.7);
+  --text: rgba(24, 38, 33, 0.98);
+  --chat-text: rgba(34, 51, 45, 0.92);
+  --muted: rgba(76, 105, 95, 0.72);
   --border: rgba(18, 24, 40, 0.12);
   --border-strong: rgba(18, 24, 40, 0.2);
-  --accent: #248fdd;
-  --accent-2: #17a261;
-  --ok: #1aa86c;
+  --accent: #3e9b82;
+  --accent-2: #5bb59f;
+  --ok: #2b9d73;
   --warn: #b3771c;
   --danger: #d44848;
-  --focus: rgba(36, 143, 221, 0.24);
-  --grid-line: rgba(36, 143, 221, 0.11);
+  --focus: rgba(62, 155, 130, 0.18);
+  --grid-line: rgba(62, 155, 130, 0.07);
   color-scheme: light;
 }
 
@@ -113,13 +113,14 @@ body::after {
       transparent 1px,
       transparent 140px
     );
-  opacity: 0.52;
+  opacity: 0.34;
   pointer-events: none;
   z-index: 0;
 }
 
 body {
   background-blend-mode: screen, screen, normal;
+  letter-spacing: 0.01em;
 }
 
 @keyframes theme-circle-transition {

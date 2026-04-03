@@ -75,7 +75,7 @@ export function renderCore(props: CoreProps) {
                   ...props.settings,
                   brandName: (e.target as HTMLInputElement).value,
                 })}
-              placeholder="Miya"
+              placeholder="PAI"
             />
           </label>
           <label class="field">
@@ -355,7 +355,7 @@ export function renderCore(props: CoreProps) {
         </div>
 
         <div class="muted" style="margin-top: 10px;">
-          Writes to <span class="mono">~/.clawdis/clawdis.json</span>. Some changes still need a gateway restart.
+          Writes to your local assistant config. Some changes still need a gateway restart.
         </div>
 
         <label class="field" style="margin-top: 12px;">

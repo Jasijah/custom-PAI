@@ -33,10 +33,28 @@
   gap: 4px;
 }
 
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.brand-mark {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  filter: drop-shadow(0 10px 24px rgba(89, 190, 152, 0.18));
+}
+
 .brand-title {
   font-family: var(--font-display);
   font-size: 28px;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.08em;
   text-transform: none;
 }
 
@@ -44,13 +62,13 @@
   color: var(--muted);
   font-size: 14px;
   letter-spacing: 0;
-  max-width: 540px;
+  max-width: 620px;
 }
 
 .brand-kicker {
   color: var(--accent);
   font-size: 11px;
-  letter-spacing: 1.2px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
@@ -377,6 +395,15 @@
 
   .brand-title {
     font-size: 22px;
+  }
+
+  .brand-lockup {
+    align-items: flex-start;
+  }
+
+  .brand-mark {
+    width: 44px;
+    height: 44px;
   }
 
   .nav {

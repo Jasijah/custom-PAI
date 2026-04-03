@@ -17,7 +17,7 @@ import {
   type UiSettings,
 } from "./storage";
 import { renderApp } from "./app-render";
-import { normalizePath, pathForTab, tabFromPath, type Tab } from "./navigation";
+import { normalizePath, pathForTab, tabFromPath, titleForTab, type Tab } from "./navigation";
 import {
   buildStructuredExportFiles,
   createStarterBuild,
@@ -339,6 +339,14 @@ export class ClawdisApp extends LitElement {
   }
 
   protected updated(changed: Map<PropertyKey, unknown>) {
+    if (
+      typeof document !== "undefined" &&
+      (changed.has("settings") || changed.has("tab"))
+    ) {
+      const brand = this.settings.brandName.trim() || "PAI";
+      const page = titleForTab(this.tab);
+      document.title = page === "Talk" ? brand : `${brand} • ${page}`;
+    }
     if (
       this.tab === "chat" &&
       (changed.has("chatMessages") ||

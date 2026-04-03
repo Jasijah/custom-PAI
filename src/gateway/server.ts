@@ -441,9 +441,9 @@ type Client = {
 
 function formatBonjourInstanceName(displayName: string) {
   const trimmed = displayName.trim();
-  if (!trimmed) return "Clawdis";
-  if (/clawdis/i.test(trimmed)) return trimmed;
-  return `${trimmed} (Clawdis)`;
+  if (!trimmed) return "PAI";
+  if (/pai/i.test(trimmed)) return trimmed;
+  return `${trimmed} (PAI)`;
 }
 
 function slugifyGeneratedAppName(input: string) {
@@ -498,7 +498,7 @@ function render(screen) {
     <div class="builder-app-shell">
       <header class="builder-app-topbar">
         <div>
-          <div class="builder-app-kicker">Generated in Clawdis</div>
+          <div class="builder-app-kicker">Generated in PAI Studio</div>
           <h1>\${title}</h1>
         </div>
         <nav class="builder-app-nav">\${navMarkup(screen)}</nav>
@@ -587,7 +587,7 @@ body {
     "src/styles.css": styles,
     "README.md": `# ${params.title}
 
-Generated from the Clawdis Build studio.
+Generated from the PAI Build studio.
 
 ## Run
 

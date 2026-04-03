@@ -1,6 +1,6 @@
 {
-  "name": "Personal AI Control",
-  "short_name": "PAI Control",
+  "name": "PAI",
+  "short_name": "PAI",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0f14",

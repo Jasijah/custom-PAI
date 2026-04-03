@@ -272,9 +272,14 @@ export function renderApp(state: AppViewState) {
     <div class="shell">
         <header class="topbar">
           <div class="brand brand-rich">
-            <div class="brand-kicker">Everyday assistant</div>
-            <div class="brand-title">${state.settings.brandName || state.settings.assistantName || "Miya"}</div>
-            <div class="brand-sub">One place for conversations, connected apps, and your daily rhythm.</div>
+            <div class="brand-lockup">
+              ${renderPaiMark()}
+              <div class="brand-copy">
+                <div class="brand-kicker">Personal AI</div>
+                <div class="brand-title">${state.settings.brandName || "PAI"}</div>
+              </div>
+            </div>
+            <div class="brand-sub">Biotech calm for conversations, image prompts, connected apps, and your daily rhythm.</div>
           </div>
         <div class="topbar-status">
           <button class="quick-search" @click=${() => state.openPalette()} aria-label="Open command palette">
@@ -647,6 +652,24 @@ export function renderApp(state: AppViewState) {
       </nav>
       ${state.paletteOpen ? renderCommandPalette(state, paletteResults) : nothing}
     </div>
+  `;
+}
+
+function renderPaiMark() {
+  return html`
+    <svg class="brand-mark" viewBox="0 0 96 96" aria-hidden="true">
+      <defs>
+        <linearGradient id="pai-core" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#dff8ee"></stop>
+          <stop offset="55%" stop-color="#94e7c6"></stop>
+          <stop offset="100%" stop-color="#66c8b1"></stop>
+        </linearGradient>
+      </defs>
+      <rect x="10" y="10" width="76" height="76" rx="28" fill="rgba(255,255,255,0.06)" stroke="rgba(180,246,226,0.4)"></rect>
+      <circle cx="48" cy="48" r="18" fill="url(#pai-core)"></circle>
+      <circle cx="48" cy="48" r="29" fill="none" stroke="rgba(173,241,220,0.72)" stroke-width="2.5" stroke-dasharray="3 6"></circle>
+      <path d="M48 19v11M48 66v11M19 48h11M66 48h11M29.5 29.5l7.7 7.7M58.8 58.8l7.7 7.7M66.5 29.5l-7.7 7.7M37.2 58.8l-7.7 7.7" stroke="rgba(220,255,244,0.9)" stroke-width="2.8" stroke-linecap="round"></path>
+    </svg>
   `;
 }
 

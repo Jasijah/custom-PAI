@@ -1,1 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="36" fill="#0a0f14"/><rect x="32" y="32" width="128" height="128" rx="28" fill="#5ea6ff"/><text x="96" y="108" fill="#fff" font-size="38" font-family="Arial" text-anchor="middle">PAI</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07110f"/>
+      <stop offset="100%" stop-color="#0f1d19"/>
+    </linearGradient>
+    <linearGradient id="core" x1="18%" y1="12%" x2="82%" y2="88%">
+      <stop offset="0%" stop-color="#e9fff5"/>
+      <stop offset="52%" stop-color="#97e4c8"/>
+      <stop offset="100%" stop-color="#63c5af"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="42" fill="url(#bg)"/>
+  <rect x="22" y="22" width="148" height="148" rx="34" fill="none" stroke="rgba(180,238,220,0.22)"/>
+  <circle cx="96" cy="96" r="22" fill="url(#core)"/>
+  <circle cx="96" cy="96" r="39" fill="none" stroke="#9ce5c7" stroke-width="3" stroke-dasharray="3 7"/>
+  <path d="M96 37v17M96 138v17M37 96h17M138 96h17M54 54l12 12M126 126l12 12M138 54l-12 12M66 126l-12 12" stroke="#dffff3" stroke-width="4" stroke-linecap="round"/>
+</svg>

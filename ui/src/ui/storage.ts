@@ -75,7 +75,7 @@ export function loadSettings(): UiSettings {
     token: "",
     sessionKey: "main",
     theme: "system",
-    brandName: "Miya",
+    brandName: "PAI",
     assistantName: "Miya",
     callMe: "",
     personality:
