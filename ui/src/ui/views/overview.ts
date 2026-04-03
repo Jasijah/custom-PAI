@@ -41,14 +41,14 @@ export function renderOverview(props: OverviewProps) {
   return html`
     <section class="hero-panel">
       <div class="hero-panel__copy">
-        <div class="hero-panel__eyebrow">${props.connected ? "Everything is connected" : "Connection needs attention"}</div>
-        <h2>Keep up with your assistant at a glance.</h2>
+        <div class="hero-panel__eyebrow">${props.connected ? "Biotech calm is online" : "Connection needs attention"}</div>
+        <h2>A quieter home for your personal AI.</h2>
         <p>
-          Home is the quick read: what is connected, what changed recently, and where to go next.
+          PAI keeps the first screen simple: current brain, system health, recent movement, and the next place to go when you want to act.
         </p>
         <div class="hero-panel__actions">
           <button class="btn primary" @click=${() => props.onRefresh()}>Refresh</button>
-          <div class="hero-panel__hint">Use Linked Apps for setup and Conversations for detailed history.</div>
+          <div class="hero-panel__hint">Use Talk for the human side, Core for identity and brain settings, and Build for new ideas.</div>
         </div>
       </div>
       <div class="hero-panel__stats">

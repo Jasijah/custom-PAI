@@ -54,10 +54,10 @@ export function renderChat(props: ChatProps) {
     return `Ask anything, plan your day, or tell ${props.assistantName} what matters.`;
   })();
   const quickPrompts = [
-    "Help me plan today",
-    "Summarize what changed recently",
+    "Help me plan today with calm focus",
+    "Learn how I like to work",
     "Create three next steps for my project",
-    "Check whether my current brain is still connected",
+    "Design a biotech-style illustration",
   ];
   const geminiConnected = Boolean(props.connected && props.providersSnapshot);
   const brainLabel =
@@ -150,6 +150,24 @@ export function renderChat(props: ChatProps) {
             `,
           )}
         </div>
+
+        ${props.messages.length === 0 && !props.stream
+          ? html`
+              <div class="chat-intro-card">
+                <div>
+                  <div class="chat-intro-card__eyebrow">First conversation</div>
+                  <div class="chat-intro-card__title">Start with the human stuff.</div>
+                  <div class="chat-intro-card__body">
+                    Tell Miya your name, how you want support to feel, and what kind of help makes your day easier. PAI works best when the first conversation feels like meeting a trusted advisor, not filling out a form.
+                  </div>
+                </div>
+                <div class="chat-intro-card__actions">
+                  <button class="btn primary" @click=${() => props.onDraftChange("Hi Miya. My name is Jasijah. I want us to start by getting to know each other and setting up how we work together.")}>Start the first conversation</button>
+                  <button class="btn" @click=${() => props.onDraftChange("Help me define your personality, how you should address me, and how I want support to feel.")}>Set directives together</button>
+                </div>
+              </div>
+            `
+          : nothing}
 
         ${props.actionCards.length
           ? html`<div class="action-strip">
