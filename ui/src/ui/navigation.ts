@@ -2,7 +2,7 @@ export const TAB_GROUPS = [
   { label: "Daily", tabs: ["chat", "build", "dashboard", "memory", "agents"] },
   {
     label: "Home",
-    tabs: ["overview", "config", "connections", "sessions", "instances", "cron"],
+    tabs: ["overview", "config", "brand", "connections", "sessions", "instances", "cron"],
   },
   { label: "Advanced", tabs: ["trust", "skills", "nodes", "economy", "debug"] },
 ] as const;
@@ -23,6 +23,7 @@ export type Tab =
   | "dashboard"
   | "economy"
   | "config"
+  | "brand"
   | "debug";
 
 const TAB_PATHS: Record<Tab, string> = {
@@ -41,6 +42,7 @@ const TAB_PATHS: Record<Tab, string> = {
   dashboard: "/dashboard",
   economy: "/economy",
   config: "/core",
+  brand: "/brand",
   debug: "/debug",
 };
 
@@ -122,6 +124,8 @@ export function titleForTab(tab: Tab) {
       return "Budget";
     case "config":
       return "Core";
+    case "brand":
+      return "Brand";
     case "debug":
       return "Developer Tools";
     default:
@@ -161,6 +165,8 @@ export function subtitleForTab(tab: Tab) {
       return "Track how your assistant budget is allocated.";
     case "config":
       return "Personalize identity, switch brains, and tune how your assistant speaks to you.";
+    case "brand":
+      return "A dedicated home for the PAI brand system, assets, and visual direction.";
     case "debug":
       return "Raw snapshots, logs, and manual tools for troubleshooting.";
     default:

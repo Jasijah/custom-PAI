@@ -159,53 +159,6 @@ export function renderCore(props: CoreProps) {
 
     <section class="grid grid-cols-2">
       <div class="card card-soft">
-        <div class="section-title">PAI Brand Kit</div>
-        <div class="section-sub">
-          A soft biotech identity for the app, your desktop shortcuts, and anything you prototype in Build.
-        </div>
-        <div class="brand-kit-preview" style="margin-top: 16px;">
-          <img src="/pai-logo.svg" alt="PAI logo" class="brand-kit-logo" />
-        </div>
-        <div class="chip-row" style="margin-top: 14px;">
-          <a class="chip action" href="/pai-logo.svg" download="pai-logo.svg">Download logo</a>
-          <a class="chip action" href="/pai-pattern.svg" download="pai-pattern.svg">Download pattern</a>
-          <a class="chip action" href="/icon-512.svg" download="pai-icon-512.svg">Download app icon</a>
-        </div>
-        <div class="callout" style="margin-top: 14px;">
-          The direction is intentionally restrained: lab-clean greens, organic signal geometry, and a calm clinical feel instead of loud sci-fi chrome.
-        </div>
-      </div>
-
-      <div class="card card-soft">
-        <div class="section-title">Brand Notes</div>
-        <div class="section-sub">
-          Use these cues when you generate apps, artwork, or onboarding copy.
-        </div>
-        <div class="stack" style="margin-top: 16px;">
-          <div class="list-item simple">
-            <div class="list-main">
-              <div class="list-title">Mood</div>
-              <div class="list-sub">Biotech calm, precise but warm, premium without feeling sterile.</div>
-            </div>
-          </div>
-          <div class="list-item simple">
-            <div class="list-main">
-              <div class="list-title">Palette</div>
-              <div class="list-sub">Soft mineral greens, clean glassy surfaces, pale signal highlights.</div>
-            </div>
-          </div>
-          <div class="list-item simple">
-            <div class="list-main">
-              <div class="list-title">Visual language</div>
-              <div class="list-sub">Cell structures, node rings, bio-signal pathways, gentle gradients, and airy space.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="grid grid-cols-2">
-      <div class="card card-soft">
         <div class="section-title">Brain</div>
         <div class="section-sub">
           Choose between fast cloud replies and a fully local setup. You can switch back any time.

@@ -44,6 +44,7 @@ import type {
   TelegramForm,
 } from "./ui-types";
 import { renderChat } from "./views/chat";
+import { renderBrand } from "./views/brand";
 import { renderCore } from "./views/core";
 import { renderBuild } from "./views/build";
 import { renderDashboard } from "./views/dashboard";
@@ -113,7 +114,7 @@ export type AppViewState = {
   buildImageSvg: string;
   buildTitle: string;
   buildPalette: "sunrise" | "ocean" | "forest" | "graphite";
-  buildLayout: "dashboard" | "mobile" | "studio";
+  buildLayout: "dashboard" | "mobile" | "studio" | "pai-biotech";
   buildCode: {
     screens: { home: string; details: string; settings: string };
     css: string;
@@ -513,12 +514,13 @@ export function renderApp(state: AppViewState) {
             })
           : nothing}
 
-          ${state.tab === "build"
+        ${state.tab === "build"
             ? renderBuild({
                 brandName: state.settings.brandName || state.settings.assistantName || "Miya",
                 assistantName: state.settings.assistantName || state.settings.brandName || "Miya",
                 activeModeLabel:
                   state.inferActiveInferenceMode() === "local" ? "Local" : "Gemini",
+                biotechMode: state.buildLayout === "pai-biotech",
                 title: state.buildTitle,
                 prompt: state.buildPrompt,
                 refinePrompt: state.buildRefinePrompt,
@@ -561,6 +563,13 @@ export function renderApp(state: AppViewState) {
                 onRestoreHistory: (id) => state.handleBuildRestoreHistory(id),
                 onNewDraft: () => state.handleBuildNewDraft(),
               onDeleteDraft: (id) => state.handleBuildDeleteDraft(id),
+            })
+          : nothing}
+
+        ${state.tab === "brand"
+          ? renderBrand({
+              brandName: state.settings.brandName || "PAI",
+              assistantName: state.settings.assistantName || "Miya",
             })
           : nothing}
 
@@ -727,6 +736,8 @@ function pageKickerForTab(tab: Tab) {
       return "Wellbeing";
     case "config":
       return "Identity";
+    case "brand":
+      return "Visual System";
     case "debug":
       return "Advanced";
     default:

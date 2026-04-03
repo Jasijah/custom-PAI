@@ -159,7 +159,7 @@ export class ClawdisApp extends LitElement {
   @state() buildImageSvg = "";
   @state() buildTitle = "Daily Planner";
   @state() buildPalette: "sunrise" | "ocean" | "forest" | "graphite" = "sunrise";
-  @state() buildLayout: "dashboard" | "mobile" | "studio" = "dashboard";
+  @state() buildLayout: "dashboard" | "mobile" | "studio" | "pai-biotech" = "dashboard";
   @state() buildCode: BuildCode = createStarterBuild({
     title: "Daily Planner",
     prompt: "Create a warm daily planner app with a focus timer, mood check-in, and a progress overview.",
@@ -547,7 +547,7 @@ export class ClawdisApp extends LitElement {
       await Promise.all([loadChatHistory(this), loadSessions(this)]);
       this.scheduleChatScroll();
     }
-    if (this.tab === "build") return;
+    if (this.tab === "build" || this.tab === "brand") return;
     if (this.tab === "config") await loadConfig(this);
     if (this.tab === "debug") await loadDebug(this);
   }
@@ -728,7 +728,7 @@ export class ClawdisApp extends LitElement {
   }
 
   private buildStudioIdentityContext() {
-    const brandName = this.settings.brandName.trim() || "Miya";
+    const brandName = this.settings.brandName.trim() || "PAI";
     const assistantName = this.settings.assistantName.trim() || brandName;
     const callMe = this.settings.callMe.trim() || "the user";
     const personality =
@@ -740,6 +740,10 @@ export class ClawdisApp extends LitElement {
   private activeBrainLabel() {
     const mode = this.inferActiveInferenceMode();
     return mode === "local" ? "local" : "Gemini";
+  }
+
+  private buildHasPaiBiotechLayout() {
+    return this.buildLayout === "pai-biotech";
   }
 
   private buildLiveAssistantPrompt() {
@@ -1082,10 +1086,12 @@ export class ClawdisApp extends LitElement {
       `Prompt: ${this.buildPrompt}`,
       `Brand context: The product surface is called ${identity.brandName}. The assistant is named ${identity.assistantName}. The user prefers to be called ${identity.callMe}.`,
       `Tone context: ${identity.personality}`,
+      this.buildHasPaiBiotechLayout()
+        ? "Style direction: follow the PAI biotech brand system with calm mineral greens, subtle signal geometry, premium spacing, and a warm everyday feel."
+        : "Style direction: keep it polished, calm, and easy for everyday people to use.",
       'Return strict JSON only with keys "title", "screens", "css", and "js".',
       'The "screens" object must include "home", "details", and "settings", each containing only body markup for that screen.',
       "The css should be complete and shared across screens. The js should be browser-safe and optional.",
-      "Make it attractive, calm, and easy for everyday people to use.",
       "Do not wrap the JSON in markdown.",
     ].join("\n");
 
@@ -1136,6 +1142,9 @@ export class ClawdisApp extends LitElement {
       `Refine instruction: ${refineInstruction}`,
       `Brand context: The product surface is called ${identity.brandName}. The assistant is named ${identity.assistantName}. The user prefers to be called ${identity.callMe}.`,
       `Tone context: ${identity.personality}`,
+      this.buildHasPaiBiotechLayout()
+        ? "Refinement style: preserve the PAI biotech brand system with restrained greens, subtle lab-inspired forms, and premium everyday usability."
+        : "Refinement style: keep it approachable, polished, and easy for everyday people to use.",
       "Update the current draft instead of starting over.",
       'Return strict JSON only with keys "title", "screens", "css", and "js".',
       'The "screens" object must include "home", "details", and "settings", each containing only body markup for that screen.',
@@ -1261,6 +1270,9 @@ export class ClawdisApp extends LitElement {
       `Layout inspiration: ${this.buildLayout}`,
       `Brand context: The product surface is called ${identity.brandName}. The assistant is named ${identity.assistantName}.`,
       `Tone context: ${identity.personality}`,
+      this.buildHasPaiBiotechLayout()
+        ? "Visual direction: subtle PAI biotech styling with calm greens, signal rings, airy space, and non-invasive premium composition."
+        : "Visual direction: polished, friendly, and everyday-friendly.",
       "Return SVG markup only.",
       "Do not use markdown fences.",
       "Keep the SVG self-contained with gradients, shapes, and text only.",

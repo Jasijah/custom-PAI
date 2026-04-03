@@ -25,7 +25,7 @@ export type BuildDraftRecord = {
   name: string;
   prompt: string;
   palette: "sunrise" | "ocean" | "forest" | "graphite";
-  layout: "dashboard" | "mobile" | "studio";
+  layout: "dashboard" | "mobile" | "studio" | "pai-biotech";
   screens: {
     home: string;
     details: string;
@@ -42,7 +42,7 @@ export type BuildHistoryEntry = {
   prompt: string;
   refinePrompt: string;
   palette: "sunrise" | "ocean" | "forest" | "graphite";
-  layout: "dashboard" | "mobile" | "studio";
+  layout: "dashboard" | "mobile" | "studio" | "pai-biotech";
   screens: {
     home: string;
     details: string;

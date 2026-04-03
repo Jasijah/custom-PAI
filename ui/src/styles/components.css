@@ -379,6 +379,15 @@
   display: block;
 }
 
+.brand-notes {
+  align-content: start;
+}
+
+.brand-prompt {
+  font-family: var(--font-body);
+  line-height: 1.55;
+}
+
 .code-block {
   font-family: var(--mono);
   font-size: 12px;

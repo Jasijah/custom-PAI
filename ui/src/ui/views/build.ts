@@ -3,7 +3,7 @@ import { html, nothing } from "lit";
 import type { BuildDraftRecord, BuildHistoryEntry } from "../storage";
 
 export type BuildPalette = "sunrise" | "ocean" | "forest" | "graphite";
-export type BuildLayout = "dashboard" | "mobile" | "studio";
+export type BuildLayout = "dashboard" | "mobile" | "studio" | "pai-biotech";
 export type BuildScreenId = "home" | "details" | "settings";
 
 export type BuildScreens = Record<BuildScreenId, string>;
@@ -18,6 +18,7 @@ export type BuildProps = {
   brandName: string;
   assistantName: string;
   activeModeLabel: string;
+  biotechMode: boolean;
   title: string;
   prompt: string;
   refinePrompt: string;
@@ -125,7 +126,7 @@ export function renderBuild(props: BuildProps) {
 
         <section class="builder-panel">
           <div class="section-title">Prompt</div>
-          <div class="section-sub">Describe what you want to build. Gemini will return a three-screen starter with shared styles and behavior.</div>
+          <div class="section-sub">Describe what you want to build. Your current brain will return a three-screen starter with shared styles and behavior.</div>
 
           <label class="field" style="margin-top: 16px;">
             <span>App name</span>
@@ -176,8 +177,15 @@ export function renderBuild(props: BuildProps) {
                 <option value="dashboard">Dashboard</option>
                 <option value="mobile">Mobile app</option>
                 <option value="studio">Studio board</option>
+                <option value="pai-biotech">PAI biotech</option>
               </select>
             </label>
+          </div>
+
+          <div class="callout" style="margin-top: 14px;">
+            ${props.biotechMode
+              ? "PAI biotech mode is on. This draft will lean into the calm green biotech brand system."
+              : "Choose the optional PAI biotech layout if you want this concept to follow the brand system."}
           </div>
 
           <div class="builder-actions">
@@ -204,6 +212,9 @@ export function renderBuild(props: BuildProps) {
             ${QUICK_REFINES.map(
               (idea) => html`<button class="chip action" @click=${() => props.onRefinePromptChange(idea)}>${idea}</button>`,
             )}
+            <button class="chip action" @click=${() => props.onRefinePromptChange("Align this concept to the PAI biotech brand system with calm greens, subtle signal geometry, and a premium everyday feel")}>
+              Align to PAI biotech
+            </button>
           </div>
         </section>
 
@@ -271,6 +282,9 @@ export function renderBuild(props: BuildProps) {
               rows="5"
             ></textarea>
           </label>
+          ${props.biotechMode
+            ? html`<div class="pill subtle" style="margin-top: 12px;">PAI biotech styling will be included in the artwork prompt.</div>`
+            : nothing}
           <div class="builder-chip-row">
             ${QUICK_IMAGE_IDEAS.map(
               (idea) => html`<button class="chip action" @click=${() => props.onImagePromptChange(idea)}>${idea}</button>`,
@@ -342,7 +356,7 @@ export function createStarterBuild(props: {
     <h1>${escapeHtml(title)}</h1>
     <p>${escapeHtml(summary)}</p>
   </header>
-  <section class="feature-grid">
+  <section class="feature-grid ${props.layout === "pai-biotech" ? "feature-grid-biotech" : ""}">
     <article class="feature-card">
       <span class="feature-label">Today</span>
       <h2>Start with the most important thing</h2>
@@ -361,7 +375,7 @@ export function createStarterBuild(props: {
     <h1>${escapeHtml(title)} details</h1>
     <p>A deeper screen for progress, metrics, and supporting context.</p>
   </header>
-  <section class="detail-list">
+  <section class="detail-list ${props.layout === "pai-biotech" ? "feature-grid-biotech" : ""}">
     <article class="feature-card"><h2>Progress</h2><p>Show important progress without turning the screen into a dense admin table.</p></article>
     <article class="feature-card"><h2>History</h2><p>Give people enough context to understand what changed and what comes next.</p></article>
   </section>
@@ -372,7 +386,7 @@ export function createStarterBuild(props: {
     <h1>${escapeHtml(title)} preferences</h1>
     <p>A simple preferences screen with a friendlier structure than a raw settings dump.</p>
   </header>
-  <section class="settings-stack">
+  <section class="settings-stack ${props.layout === "pai-biotech" ? "feature-grid-biotech" : ""}">
     <article class="feature-card"><h2>Notifications</h2><p>Control what matters and keep the rest quiet.</p></article>
     <article class="feature-card"><h2>Appearance</h2><p>Choose a calmer palette and layout that fits everyday use.</p></article>
   </section>
@@ -406,6 +420,23 @@ body {
 .feature-grid, .detail-list, .settings-stack { display: grid; gap: 18px; margin-top: 28px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .layout-mobile .feature-grid, .layout-mobile .detail-list, .layout-mobile .settings-stack { grid-template-columns: 1fr; max-width: 420px; }
 .layout-studio .feature-grid { grid-template-columns: 1.2fr 0.8fr; }
+.layout-pai-biotech .feature-grid,
+.layout-pai-biotech .detail-list,
+.layout-pai-biotech .settings-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.layout-pai-biotech .feature-card {
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at top right, rgba(168, 255, 223, 0.12), transparent 32%),
+    linear-gradient(180deg, rgba(255,255,255,0.04), transparent),
+    rgba(8, 25, 20, 0.8);
+  border: 1px solid rgba(169, 241, 219, 0.18);
+}
+.layout-pai-biotech .hero {
+  padding-bottom: 8px;
+}
+.layout-pai-biotech .hero p {
+  max-width: 52ch;
+}
 .feature-card { padding: 22px; border-radius: 28px; background: var(--panel); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 20px 50px rgba(0,0,0,0.12); }
 .top-nav { display: flex; gap: 10px; padding: 24px 28px 0; }
 .top-nav a { color: var(--ink); text-decoration: none; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.08); }
@@ -551,6 +582,8 @@ function labelForLayout(layout: BuildLayout) {
       return "Mobile concept";
     case "studio":
       return "Studio board";
+    case "pai-biotech":
+      return "PAI biotech";
     default:
       return "Product concept";
   }
