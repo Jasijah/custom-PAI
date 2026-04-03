@@ -37,8 +37,7 @@ export function renderConfig(props: ConfigProps) {
       </div>
 
       <div class="muted" style="margin-top: 10px;">
-        Writes to <span class="mono">~/.clawdis/clawdis.json</span>. Some changes
-        require a gateway restart.
+        Writes to your local assistant config. Some changes require a gateway restart.
       </div>
 
       <label class="field" style="margin-top: 12px;">

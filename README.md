@@ -64,6 +64,23 @@ Your surfaces
 
 Runtime: **Node ≥22** + **pnpm**.
 
+### Prerequisites
+
+- **Windows 10+**: install Node.js 22 LTS and pnpm (`corepack enable` then `corepack prepare pnpm@latest --activate`).
+- **macOS**: install Node.js 22 LTS and pnpm (Homebrew or corepack).
+- Optional for native integrations: Xcode command line tools (macOS), Docker (any OS), and `signal-cli` if you use Signal.
+
+### 1) Install + configure environment
+
+```bash
+pnpm install
+cp .env.example .env
+```
+
+Edit `.env` as needed. At minimum, set `MIYA_ENABLED=1` if you want the Miya post-run pipeline active.
+
+### 2) Build + run
+
 ```bash
 pnpm install
 pnpm build
@@ -89,6 +106,20 @@ pnpm clawdis agent --message "Ship checklist" --thinking high
 ```
 
 If you run from source, prefer `pnpm clawdis …` (not global `clawdis`).
+
+### 3) Open interfaces
+
+- Gateway / API: `ws://127.0.0.1:18789`
+- Web UI dev: `pnpm ui:dev` then open the printed local URL (usually `http://127.0.0.1:5173`)
+- Web UI prod build preview: serve `ui/dist` with any static server
+
+### Cross-platform script notes
+
+- `pnpm dev`, `pnpm start`, and `pnpm build` are Node-based and work in PowerShell, CMD, and macOS Terminal.
+- Avoid shell-specific command chains for local automation; prefer `pnpm <script>` wrappers already in `package.json`.
+- On Windows, double-click [Start-Miya.cmd](C:/Users/My/Documents/custom-PAI-repo/Start-Miya.cmd) to launch the local gateway and open the control UI without using a terminal.
+- Double-click [Stop-Miya.cmd](C:/Users/My/Documents/custom-PAI-repo/Stop-Miya.cmd) to shut the local gateway down without using a terminal.
+- If you want desktop icons, double-click [Install-Miya-Shortcut.cmd](C:/Users/My/Documents/custom-PAI-repo/Install-Miya-Shortcut.cmd) once to create both `Start Miya` and `Stop Miya` shortcuts on your desktop.
 
 ## Chat commands
 
@@ -206,6 +237,54 @@ Browser control (optional):
 }
 ```
 
+### Environment variables (`.env`)
+
+The project loads `.env` via `dotenv` on startup. Recommended variables are documented in `.env.example`:
+
+- `GATEWAY_PORT`, `GATEWAY_BIND`
+- `CLAWDIS_WORKSPACE`, `CLAWDIS_STATE_DIR`
+- `MIYA_ENABLED`, `MIYA_ENCRYPTION_KEY`
+- `LOG_LEVEL`
+
+Use absolute paths for workspace/state on both Windows and macOS to avoid ambiguity.
+
+### Data locations + reset
+
+- Default state/config root is user-home based (`~/.clawdis` on macOS/Linux, user profile equivalent on Windows).
+- Workspace defaults to `~/clawd` unless `agent.workspace` or env overrides are provided.
+- Reset options:
+  - Soft reset: remove sessions only.
+  - Full reset: remove config, credentials, sessions, and workspace via onboarding reset flow.
+  - Manual reset: stop gateway, then delete state/workspace directories and rerun `pnpm clawdis onboard`.
+
+
+## Web UI (PAI Control), PWA, and iPhone wrapper prep
+
+```bash
+# run web ui locally
+pnpm -C ui dev
+
+# build static ui bundle
+pnpm -C ui build
+```
+
+### Enable PWA behavior
+
+- `ui/public/manifest.webmanifest` defines app metadata/icons.
+- `ui/public/sw.js` enables minimal shell caching for offline route boot.
+- `ui/src/main.ts` registers the service worker automatically in supported browsers.
+
+### Prepare iPhone wrapper (Capacitor-ready)
+
+A starter Capacitor config is included at `ui/capacitor.config.ts` so the built web app can be wrapped later.
+
+Suggested next commands (when you are ready to package):
+
+```bash
+pnpm -C ui build
+# then initialize/install capacitor tooling in ui/ and sync iOS project
+```
+
 ## Docs
 
 - [`docs/index.md`](docs/index.md) (overview)
@@ -230,6 +309,17 @@ clawdis hooks gmail run
 - [`docs/troubleshooting.md`](docs/troubleshooting.md)
 - [`docs/ios/connect.md`](docs/ios/connect.md)
 - [`docs/clawdis-mac.md`](docs/clawdis-mac.md)
+
+## Dependency portability audit (Windows + macOS)
+
+Most dependencies are cross-platform Node packages, but these deserve attention when expanding Miya PAI:
+
+- `node-pty`: native bindings; can fail without build tools on Windows.
+- `sharp`: native binaries; generally supported, but version/runtime mismatch can break installs.
+- `playwright-core`: browser runtime expectations differ by host; keep browser path configurable.
+- platform service integrations (`launchd`, `systemd`, `schtasks`) are intentionally OS-specific and should stay behind runtime checks.
+
+No dependency replacements were applied automatically in this pass; this keeps behavior stable while flagging future risk.
 
 ## Contributing
 

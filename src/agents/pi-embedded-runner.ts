@@ -377,7 +377,8 @@ export async function runEmbeddedPiAgent(params: {
       const apiKey = await getApiKeyForModel(model, authStorage);
       authStorage.setRuntimeApiKey(model.provider, apiKey);
 
-      const thinkingLevel = mapThinkingLevel(params.thinkLevel);
+      const thinkingLevel =
+        provider === "local" ? undefined : mapThinkingLevel(params.thinkLevel);
 
       defaultRuntime.log?.(
         `embedded run start: runId=${params.runId} sessionId=${params.sessionId} provider=${provider} model=${modelId} surface=${params.surface ?? "unknown"}`,
@@ -422,6 +423,7 @@ export async function runEmbeddedPiAgent(params: {
           bash: params.config?.agent?.bash,
           surface: params.surface,
         });
+        const activeTools = provider === "local" ? [] : tools;
         const machineName = await getMachineDisplayName();
         const runtimeInfo = {
           host: machineName,
@@ -443,7 +445,7 @@ export async function runEmbeddedPiAgent(params: {
           contextFiles,
           skills: promptSkills,
           cwd: resolvedWorkspace,
-          tools,
+          tools: activeTools,
         });
 
         const sessionManager = SessionManager.open(params.sessionFile);
@@ -461,7 +463,7 @@ export async function runEmbeddedPiAgent(params: {
           thinkingLevel,
           systemPrompt,
           // Custom tool set: extra bash/process + read image sanitization.
-          tools,
+          tools: activeTools,
           sessionManager,
           settingsManager,
           skills: promptSkills,

@@ -613,6 +613,7 @@ export const ChatSendParamsSchema = Type.Object(
   {
     sessionKey: NonEmptyString,
     message: NonEmptyString,
+    extraSystemPrompt: Type.Optional(Type.String()),
     thinking: Type.Optional(Type.String()),
     deliver: Type.Optional(Type.Boolean()),
     attachments: Type.Optional(Type.Array(Type.Unknown())),
@@ -626,6 +627,27 @@ export const ChatAbortParamsSchema = Type.Object(
   {
     sessionKey: NonEmptyString,
     runId: NonEmptyString,
+  },
+  { additionalProperties: false },
+);
+
+export const BuilderScreensSchema = Type.Object(
+  {
+    home: Type.String(),
+    details: Type.String(),
+    settings: Type.String(),
+  },
+  { additionalProperties: false },
+);
+
+export const BuilderScaffoldParamsSchema = Type.Object(
+  {
+    title: NonEmptyString,
+    slug: Type.Optional(NonEmptyString),
+    screens: BuilderScreensSchema,
+    css: Type.String(),
+    js: Type.String(),
+    overwrite: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );
@@ -701,6 +723,7 @@ export const ProtocolSchemas: Record<string, TSchema> = {
   CronRunLogEntry: CronRunLogEntrySchema,
   ChatHistoryParams: ChatHistoryParamsSchema,
   ChatSendParams: ChatSendParamsSchema,
+  BuilderScaffoldParams: BuilderScaffoldParamsSchema,
   ChatAbortParams: ChatAbortParamsSchema,
   ChatEvent: ChatEventSchema,
   TickEvent: TickEventSchema,
@@ -757,6 +780,7 @@ export type CronRunParams = Static<typeof CronRunParamsSchema>;
 export type CronRunsParams = Static<typeof CronRunsParamsSchema>;
 export type CronRunLogEntry = Static<typeof CronRunLogEntrySchema>;
 export type ChatAbortParams = Static<typeof ChatAbortParamsSchema>;
+export type BuilderScaffoldParams = Static<typeof BuilderScaffoldParamsSchema>;
 export type ChatEvent = Static<typeof ChatEventSchema>;
 export type TickEvent = Static<typeof TickEventSchema>;
 export type ShutdownEvent = Static<typeof ShutdownEventSchema>;

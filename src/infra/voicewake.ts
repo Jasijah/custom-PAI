@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
+import { resolveHomeDir } from "../utils.js";
 
 export type VoiceWakeConfig = {
   triggers: string[];
@@ -11,7 +11,7 @@ export type VoiceWakeConfig = {
 const DEFAULT_TRIGGERS = ["clawd", "claude", "computer"];
 
 function defaultBaseDir() {
-  return path.join(os.homedir(), ".clawdis");
+  return path.join(resolveHomeDir() ?? process.cwd(), ".clawdis");
 }
 
 function resolvePath(baseDir?: string) {

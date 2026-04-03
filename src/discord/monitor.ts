@@ -14,6 +14,7 @@ import { formatAgentEnvelope } from "../auto-reply/envelope.js";
 import { getReplyFromConfig } from "../auto-reply/reply.js";
 import { SILENT_REPLY_TOKEN } from "../auto-reply/tokens.js";
 import type { ReplyPayload } from "../auto-reply/types.js";
+import { BRAND_ASSISTANT_NAME } from "../branding.js";
 import type {
   DiscordSlashCommandConfig,
   ReplyToMode,
@@ -979,11 +980,11 @@ async function ensureSlashCommand(
     if (hasCommand) return;
     await appCommands.create({
       name: slashCommand.name,
-      description: "Ask Clawdis a question",
+      description: `Ask your ${BRAND_ASSISTANT_NAME} a question`,
       options: [
         {
           name: "prompt",
-          description: "What should Clawdis help with?",
+          description: `What should your ${BRAND_ASSISTANT_NAME} help with?`,
           type: ApplicationCommandOptionType.String,
           required: true,
         },
@@ -1011,7 +1012,7 @@ function resolveSlashCommandConfig(
 ): Required<DiscordSlashCommandConfig> {
   return {
     enabled: raw ? raw.enabled !== false : false,
-    name: raw?.name?.trim() || "clawd",
+    name: raw?.name?.trim() || "assistant",
     sessionPrefix: raw?.sessionPrefix?.trim() || "discord:slash",
     ephemeral: raw?.ephemeral !== false,
   };

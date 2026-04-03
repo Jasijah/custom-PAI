@@ -84,16 +84,45 @@ function buildNodeInstallCommand(
   packageName: string,
   prefs: SkillsInstallPreferences,
 ): string[] {
+  const managerBin =
+    prefs.nodeManager === "pnpm"
+      ? "pnpm"
+      : prefs.nodeManager === "yarn"
+        ? "yarn"
+        : prefs.nodeManager === "bun"
+          ? "bun"
+          : "npm";
+  const cmdArgs =
+    prefs.nodeManager === "pnpm"
+      ? ["add", "-g", packageName]
+      : prefs.nodeManager === "yarn"
+        ? ["global", "add", packageName]
+        : prefs.nodeManager === "bun"
+          ? ["add", "-g", packageName]
+          : ["install", "-g", packageName];
+
+  if (process.platform === "win32") {
+    return ["cmd.exe", "/d", "/s", "/c", [managerBin, ...cmdArgs].join(" ")];
+  }
+
   switch (prefs.nodeManager) {
     case "pnpm":
-      return ["pnpm", "add", "-g", packageName];
+      return [managerBin, ...cmdArgs];
     case "yarn":
-      return ["yarn", "global", "add", packageName];
+      return [managerBin, ...cmdArgs];
     case "bun":
-      return ["bun", "add", "-g", packageName];
+      return [managerBin, ...cmdArgs];
     default:
-      return ["npm", "install", "-g", packageName];
+      return [managerBin, ...cmdArgs];
   }
+}
+
+function isPnpmGlobalBinError(stderr: string, stdout: string): boolean {
+  const combined = `${stderr}\n${stdout}`.toLowerCase();
+  return (
+    combined.includes("pnpm setup") &&
+    combined.includes("global-bin-dir")
+  );
 }
 
 function buildInstallCommand(
@@ -274,7 +303,7 @@ export async function installSkill(
     if (brewBin) env = { GOBIN: brewBin };
   }
 
-  const result = await (async () => {
+  let result = await (async () => {
     const argv = command.argv;
     if (!argv || argv.length === 0) {
       return { code: null, stdout: "", stderr: "invalid install command" };
@@ -289,6 +318,34 @@ export async function installSkill(
       return { code: null, stdout: "", stderr };
     }
   })();
+
+  if (
+    spec.kind === "node" &&
+    prefs.nodeManager === "pnpm" &&
+    result.code !== 0 &&
+    isPnpmGlobalBinError(result.stderr, result.stdout) &&
+    spec.package
+  ) {
+    const packageName = spec.package;
+    const fallbackResult = await (async () => {
+      try {
+        return await runCommandWithTimeout(
+          buildNodeInstallCommand(packageName, {
+            ...prefs,
+            nodeManager: "npm",
+          }),
+          {
+            timeoutMs,
+            env,
+          },
+        );
+      } catch (err) {
+        const stderr = err instanceof Error ? err.message : String(err);
+        return { code: null, stdout: "", stderr };
+      }
+    })();
+    result = fallbackResult;
+  }
 
   const success = result.code === 0;
   return {

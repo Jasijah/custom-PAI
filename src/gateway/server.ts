@@ -155,6 +155,7 @@ import {
   getResolvedLoggerSettings,
   runtimeForLogger,
 } from "../logging.js";
+import { isMiyaEnabled } from "../miya/config.js";
 import { setCommandLaneConcurrency } from "../process/command-queue.js";
 import { runExec } from "../process/exec.js";
 import { monitorWebProvider, webAuthExists } from "../providers/web/index.js";
@@ -374,6 +375,7 @@ async function loadGatewayModelCatalog(): Promise<GatewayModelChoice[]> {
 }
 
 import {
+  type BuilderScaffoldParams,
   type ConnectParams,
   ErrorCodes,
   type ErrorShape,
@@ -388,6 +390,7 @@ import {
   type SessionsResetParams,
   type Snapshot,
   validateAgentParams,
+  validateBuilderScaffoldParams,
   validateChatAbortParams,
   validateChatHistoryParams,
   validateChatSendParams,
@@ -438,9 +441,190 @@ type Client = {
 
 function formatBonjourInstanceName(displayName: string) {
   const trimmed = displayName.trim();
-  if (!trimmed) return "Clawdis";
-  if (/clawdis/i.test(trimmed)) return trimmed;
-  return `${trimmed} (Clawdis)`;
+  if (!trimmed) return "PAI";
+  if (/pai/i.test(trimmed)) return trimmed;
+  return `${trimmed} (PAI)`;
+}
+
+function slugifyGeneratedAppName(input: string) {
+  return (
+    input
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "app"
+  );
+}
+
+function buildGeneratedViteFiles(params: {
+  title: string;
+  screens: { home: string; details: string; settings: string };
+  css: string;
+  js: string;
+}) {
+  const packageJson = {
+    name: slugifyGeneratedAppName(params.title),
+    private: true,
+    version: "0.0.1",
+    type: "module",
+    scripts: {
+      dev: "vite",
+      build: "vite build",
+      preview: "vite preview",
+    },
+    devDependencies: {
+      vite: "^7.3.0",
+    },
+  };
+
+  const mainJs = `import "./styles.css";
+
+const screens = ${JSON.stringify(params.screens, null, 2)};
+const shell = document.querySelector("#app");
+const title = ${JSON.stringify(params.title)};
+const sharedLogic = () => {
+${params.js}
+};
+
+function navMarkup(current) {
+  return ['home', 'details', 'settings']
+    .map((screen) => \`<button class="nav-pill \${screen === current ? "active" : ""}" data-screen="\${screen}">\${screen[0].toUpperCase() + screen.slice(1)}</button>\`)
+    .join("");
+}
+
+function render(screen) {
+  const body = screens[screen] ?? screens.home;
+  shell.innerHTML = \`
+    <div class="builder-app-shell">
+      <header class="builder-app-topbar">
+        <div>
+          <div class="builder-app-kicker">Generated in PAI Studio</div>
+          <h1>\${title}</h1>
+        </div>
+        <nav class="builder-app-nav">\${navMarkup(screen)}</nav>
+      </header>
+      <section class="builder-app-screen">\${body}</section>
+    </div>
+  \`;
+
+  shell.querySelectorAll("[data-screen]").forEach((node) => {
+    node.addEventListener("click", () => render(node.getAttribute("data-screen") || "home"));
+  });
+}
+
+render("home");
+sharedLogic();
+`;
+
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${params.title}</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>`;
+
+  const styles = `${params.css}
+
+body {
+  margin: 0;
+}
+
+.builder-app-shell {
+  min-height: 100vh;
+}
+
+.builder-app-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 24px 28px 0;
+}
+
+.builder-app-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  opacity: 0.72;
+}
+
+.builder-app-topbar h1 {
+  margin: 8px 0 0;
+}
+
+.builder-app-nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nav-pill {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.nav-pill.active {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.builder-app-screen {
+  min-height: 0;
+}`;
+
+  return {
+    "package.json": JSON.stringify(packageJson, null, 2),
+    "index.html": html,
+    "src/main.js": mainJs,
+    "src/styles.css": styles,
+    "README.md": `# ${params.title}
+
+Generated from the PAI Build studio.
+
+## Run
+
+\`\`\`bash
+pnpm install
+pnpm dev
+\`\`\`
+`,
+  } as const;
+}
+
+async function scaffoldGeneratedViteApp(params: BuilderScaffoldParams) {
+  const slug = slugifyGeneratedAppName(params.slug || params.title);
+  const root = path.join(process.cwd(), "apps", "generated", slug);
+  if (!params.overwrite && fs.existsSync(root)) {
+    throw new Error(`generated app already exists: ${root}`);
+  }
+
+  const files = buildGeneratedViteFiles({
+    title: params.title,
+    screens: params.screens,
+    css: params.css,
+    js: params.js,
+  });
+
+  await fs.promises.mkdir(path.join(root, "src"), { recursive: true });
+  for (const [relativePath, contents] of Object.entries(files)) {
+    const target = path.join(root, relativePath);
+    await fs.promises.mkdir(path.dirname(target), { recursive: true });
+    await fs.promises.writeFile(target, `${contents}\n`, "utf-8");
+  }
+
+  return {
+    ok: true,
+    path: root,
+    files: Object.keys(files),
+  };
 }
 
 async function resolveTailnetDnsHint(): Promise<string | undefined> {
@@ -547,6 +731,7 @@ const METHODS = [
   "chat.history",
   "chat.abort",
   "chat.send",
+  "builder.scaffold",
 ];
 
 const EVENTS = [
@@ -3406,11 +3591,12 @@ export async function startGatewayServer(
             };
           }
 
-          const p = params as {
-            sessionKey: string;
-            message: string;
-            thinking?: string;
-            deliver?: boolean;
+            const p = params as {
+              sessionKey: string;
+              message: string;
+              extraSystemPrompt?: string;
+              thinking?: string;
+              deliver?: boolean;
             attachments?: Array<{
               type?: string;
               mimeType?: string;
@@ -3507,10 +3693,11 @@ export async function startGatewayServer(
             }
 
             await agentCommand(
-              {
-                message: messageWithAttachments,
-                sessionId,
-                thinking: p.thinking,
+                {
+                  message: messageWithAttachments,
+                  extraSystemPrompt: p.extraSystemPrompt,
+                  sessionId,
+                  thinking: p.thinking,
                 deliver: p.deliver,
                 timeout: Math.ceil(timeoutMs / 1000).toString(),
                 surface: `Node(${nodeId})`,
@@ -3552,6 +3739,22 @@ export async function startGatewayServer(
           } finally {
             chatAbortControllers.delete(clientRunId);
           }
+        }
+        case "builder.scaffold": {
+          const params = parseParams();
+          if (!validateBuilderScaffoldParams(params)) {
+            return {
+              ok: false,
+              error: {
+                code: ErrorCodes.INVALID_REQUEST,
+                message: `invalid builder.scaffold params: ${formatValidationErrors(validateBuilderScaffoldParams.errors)}`,
+              },
+            };
+          }
+          const payload = await scaffoldGeneratedViteApp(
+            params as BuilderScaffoldParams,
+          );
+          return { ok: true, payloadJSON: JSON.stringify(payload) };
         }
         default:
           return {
@@ -3978,6 +4181,37 @@ export async function startGatewayServer(
     }
     agentRunSeq.set(evt.runId, evt.seq);
     broadcast("agent", evt);
+
+    if (isMiyaEnabled() && evt.stream === "miya") {
+      const data = evt.data as Record<string, unknown>;
+      if (Array.isArray(data.memory) && data.memory.length > 0) {
+        broadcast("miya.memory.updated", {
+          runId: evt.runId,
+          items: data.memory,
+        });
+      }
+      if (Array.isArray(data.actionCards) && data.actionCards.length > 0) {
+        broadcast("miya.actions.updated", {
+          runId: evt.runId,
+          items: data.actionCards,
+        });
+      }
+      if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+        broadcast("miya.profile.updated", {
+          runId: evt.runId,
+          suggestions: data.suggestions,
+        });
+      }
+      if (typeof data.error === "string") {
+        broadcast("miya.audit.appended", {
+          runId: evt.runId,
+          detail: data.error,
+        });
+      }
+      broadcast("miya.permissions.updated", {
+        runId: evt.runId,
+      });
+    }
 
     const chatLink = peekChatRun(evt.runId);
     const sessionKey =
@@ -4798,21 +5032,6 @@ export async function startGatewayServer(
               break;
             }
             case "chat.send": {
-              if (
-                client &&
-                isWebchatConnect(client.connect) &&
-                !hasConnectedMobileNode()
-              ) {
-                respond(
-                  false,
-                  undefined,
-                  errorShape(
-                    ErrorCodes.UNAVAILABLE,
-                    "web chat disabled: no connected iOS/Android nodes",
-                  ),
-                );
-                break;
-              }
               const params = (req.params ?? {}) as Record<string, unknown>;
               if (!validateChatSendParams(params)) {
                 respond(
@@ -4825,11 +5044,12 @@ export async function startGatewayServer(
                 );
                 break;
               }
-              const p = params as {
-                sessionKey: string;
-                message: string;
-                thinking?: string;
-                deliver?: boolean;
+                const p = params as {
+                  sessionKey: string;
+                  message: string;
+                  extraSystemPrompt?: string;
+                  thinking?: string;
+                  deliver?: boolean;
                 attachments?: Array<{
                   type?: string;
                   mimeType?: string;
@@ -4922,10 +5142,11 @@ export async function startGatewayServer(
                 }
 
                 await agentCommand(
-                  {
-                    message: messageWithAttachments,
-                    sessionId,
-                    thinking: p.thinking,
+                    {
+                      message: messageWithAttachments,
+                      extraSystemPrompt: p.extraSystemPrompt,
+                      sessionId,
+                      thinking: p.thinking,
                     deliver: p.deliver,
                     timeout: Math.ceil(timeoutMs / 1000).toString(),
                     surface: "WebChat",
@@ -4963,6 +5184,33 @@ export async function startGatewayServer(
                 });
               } finally {
                 chatAbortControllers.delete(clientRunId);
+              }
+              break;
+            }
+            case "builder.scaffold": {
+              const params = (req.params ?? {}) as Record<string, unknown>;
+              if (!validateBuilderScaffoldParams(params)) {
+                respond(
+                  false,
+                  undefined,
+                  errorShape(
+                    ErrorCodes.INVALID_REQUEST,
+                    `invalid builder.scaffold params: ${formatValidationErrors(validateBuilderScaffoldParams.errors)}`,
+                  ),
+                );
+                break;
+              }
+              try {
+                const payload = await scaffoldGeneratedViteApp(
+                  params as BuilderScaffoldParams,
+                );
+                respond(true, payload);
+              } catch (err) {
+                respond(
+                  false,
+                  undefined,
+                  errorShape(ErrorCodes.UNAVAILABLE, String(err)),
+                );
               }
               break;
             }

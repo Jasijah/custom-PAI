@@ -27,6 +27,10 @@ export type DebugProps = {
 
 export function renderDebug(props: DebugProps) {
   return html`
+    <section class="callout">
+      Developer Tools is intentionally separate from the everyday experience. Use it for raw logs, RPC calls, and troubleshooting only.
+    </section>
+
     <section class="grid grid-cols-2">
       <div class="card">
         <div class="row" style="justify-content: space-between;">

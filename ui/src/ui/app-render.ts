@@ -8,9 +8,22 @@ import {
   titleForTab,
   type Tab,
 } from "./navigation";
-import type { UiSettings } from "./storage";
+import type {
+  BuildDraftRecord,
+  BuildHistoryEntry,
+  ImprovementIdea,
+  UiSettings,
+} from "./storage";
 import type { ThemeMode } from "./theme";
 import type { ThemeTransitionContext } from "./theme-transition";
+import type {
+  CognitiveState,
+  GrantDuration,
+  MemoryLayer,
+  PermissionScope,
+  PrivacyLevel,
+  VoicePrefs,
+} from "./cognitive-store";
 import type {
   ConfigSnapshot,
   CronJob,
@@ -31,12 +44,18 @@ import type {
   TelegramForm,
 } from "./ui-types";
 import { renderChat } from "./views/chat";
-import { renderConfig } from "./views/config";
+import { renderBrand } from "./views/brand";
+import { renderCore } from "./views/core";
+import { renderBuild } from "./views/build";
+import { renderDashboard } from "./views/dashboard";
 import { renderConnections } from "./views/connections";
 import { renderCron } from "./views/cron";
 import { renderDebug } from "./views/debug";
 import { renderInstances } from "./views/instances";
 import { renderNodes } from "./views/nodes";
+import { renderMemory } from "./views/memory";
+import { renderAgents } from "./views/agents";
+import { renderTrust } from "./views/trust";
 import { renderOverview } from "./views/overview";
 import { renderSessions } from "./views/sessions";
 import { renderSkills } from "./views/skills";
@@ -79,6 +98,8 @@ export type AppViewState = {
   hello: GatewayHelloOk | null;
   lastError: string | null;
   eventLog: EventLogEntry[];
+  paletteOpen: boolean;
+  paletteQuery: string;
   sessionKey: string;
   chatLoading: boolean;
   chatSending: boolean;
@@ -87,6 +108,30 @@ export type AppViewState = {
   chatStream: string | null;
   chatRunId: string | null;
   chatThinkingLevel: string | null;
+  buildPrompt: string;
+  buildRefinePrompt: string;
+  buildImagePrompt: string;
+  buildImageSvg: string;
+  buildTitle: string;
+  buildPalette: "sunrise" | "ocean" | "forest" | "graphite";
+  buildLayout: "dashboard" | "mobile" | "studio" | "pai-biotech";
+  buildCode: {
+    screens: { home: string; details: string; settings: string };
+    css: string;
+    js: string;
+  };
+  buildActiveScreen: "home" | "details" | "settings";
+  buildDrafts: BuildDraftRecord[];
+  buildHistory: BuildHistoryEntry[];
+  improvementIdeas: ImprovementIdea[];
+  coreIdeaDraft: string;
+  buildSelectedDraftId: string | null;
+  buildGenerating: boolean;
+  buildStatus: string | null;
+  cognitive: CognitiveState;
+  memoryQuery: string;
+  voiceListening: boolean;
+  voiceSupported: boolean;
   nodesLoading: boolean;
   nodes: Array<Record<string, unknown>>;
   configLoading: boolean;
@@ -154,6 +199,8 @@ export type AppViewState = {
   client: GatewayBrowserClient | null;
   connect: () => void;
   setTab: (tab: Tab) => void;
+  openPalette: () => void;
+  closePalette: () => void;
   setTheme: (theme: ThemeMode, context?: ThemeTransitionContext) => void;
   applySettings: (next: UiSettings) => void;
   loadOverview: () => Promise<void>;
@@ -162,36 +209,96 @@ export type AppViewState = {
   handleWhatsAppWait: () => Promise<void>;
   handleWhatsAppLogout: () => Promise<void>;
   handleTelegramSave: () => Promise<void>;
+  handleDiscordSave: () => Promise<void>;
+  handleSignalSave: () => Promise<void>;
+  handleIMessageSave: () => Promise<void>;
   handleSendChat: () => Promise<void>;
+  handleBuildGenerate: () => Promise<void>;
+  handleBuildRefine: () => Promise<void>;
+  handleBuildGenerateImage: () => Promise<void>;
+  handleBuildExportImage: () => void;
+  handleBuildSaveDraft: () => void;
+  handleBuildExport: () => void;
+  handleBuildScaffold: () => Promise<void>;
+  handleBuildSelectDraft: (id: string) => void;
+  handleBuildRestoreHistory: (id: string) => void;
+  handleBuildNewDraft: () => void;
+  handleBuildDeleteDraft: (id: string) => void;
+  handleCoreIdeaCreate: () => void;
+  handleTalkIdeaCreate: () => void;
+  handleIdeaApprove: (id: string) => void;
+  handleIdeaImplemented: (id: string) => void;
+  handleIdeaDelete: (id: string) => void;
+  inferActiveInferenceMode: () => "api" | "local" | "unknown";
+  inferActiveModelRef: () => string | null;
+  handleApplyInferenceMode: (mode: "api" | "local") => Promise<void>;
+  handlePermission: (scope: PermissionScope, enabled: boolean, duration: GrantDuration) => void;
+  handleMemoryCreate: (input: {
+    title: string;
+    body: string;
+    layer: MemoryLayer;
+    tags: string[];
+    privacy: PrivacyLevel;
+    importance: number;
+    confidence: number;
+    emotionalWeight: number;
+    retentionUntil: number | null;
+    source: string;
+  }) => void;
+  handleRunAgents: () => void;
+  handleActionCard: (id: string, mode: "accepted" | "scheduled" | "dismissed") => void;
+  handleActionReflect: (id: string, done: boolean, usefulness: number, obstacle: string) => void;
+  memoryResults: () => ReturnType<typeof import("./cognitive-store").searchMemory>;
+  setVoice: (next: Partial<VoicePrefs>) => void;
+  startStt: () => void;
+  stopStt: () => void;
+  stopSpeech: () => void;
+  speak: (text: string) => void;
+  setWellbeing: (key: "cognitiveLoad" | "wellbeing", value: number) => void;
 };
 
 export function renderApp(state: AppViewState) {
   const presenceCount = state.presenceEntries.length;
   const sessionsCount = state.sessionsResult?.count ?? null;
   const cronNext = state.cronStatus?.nextWakeAtMs ?? null;
-  const hasConnectedMobileNode = state.nodes.some((n) => {
-    if (!Boolean(n.connected)) return false;
-    const p = typeof n.platform === "string" ? n.platform.trim().toLowerCase() : "";
-    return p.startsWith("ios") || p.startsWith("ipados") || p.startsWith("android");
-  });
   const chatDisabledReason = !state.connected
     ? "Disconnected from gateway."
-    : hasConnectedMobileNode
-      ? null
-      : "No connected iOS/Android node — Web Chat + Talk are disabled.";
+    : null;
+
+  const linkedProviders = countLinkedProviders(state.providersSnapshot);
+  const timeline = state.eventLog.slice(0, 8);
+  const paletteResults = resolvePaletteResults(state.paletteQuery);
 
   return html`
     <div class="shell">
-      <header class="topbar">
-        <div class="brand">
-          <div class="brand-title">Clawdis Control</div>
-          <div class="brand-sub">Gateway dashboard</div>
-        </div>
+        <header class="topbar">
+          <div class="brand brand-rich">
+            <div class="brand-lockup">
+              ${renderPaiMark()}
+              <div class="brand-copy">
+                <div class="brand-kicker">Personal AI</div>
+                <div class="brand-title">${state.settings.brandName || "PAI"}</div>
+              </div>
+            </div>
+            <div class="brand-sub">Biotech calm for conversations, image prompts, connected apps, and your daily rhythm.</div>
+          </div>
         <div class="topbar-status">
+          <button class="quick-search" @click=${() => state.openPalette()} aria-label="Open command palette">
+            <span>Search or jump</span>
+            <span class="quick-search__hint">Ctrl K</span>
+          </button>
           <div class="pill">
             <span class="statusDot ${state.connected ? "ok" : ""}"></span>
-            <span>Health</span>
+            <span>${state.connected ? "Ready" : "Offline"}</span>
             <span class="mono">${state.connected ? "OK" : "Offline"}</span>
+          </div>
+          <div class="pill subtle">
+            <span>Linked apps</span>
+            <span class="mono">${linkedProviders}</span>
+          </div>
+          <div class="pill subtle">
+            <span>Brain</span>
+            <span class="mono">${state.inferActiveInferenceMode() === "local" ? "Local" : state.inferActiveInferenceMode() === "api" ? "Gemini" : "Unknown"}</span>
           </div>
           ${renderThemeToggle(state)}
         </div>
@@ -209,6 +316,7 @@ export function renderApp(state: AppViewState) {
       <main class="content">
         <section class="content-header">
           <div>
+            <div class="page-kicker">${pageKickerForTab(state.tab)}</div>
             <div class="page-title">${titleForTab(state.tab)}</div>
             <div class="page-sub">${subtitleForTab(state.tab)}</div>
           </div>
@@ -230,6 +338,9 @@ export function renderApp(state: AppViewState) {
               sessionsCount,
               cronEnabled: state.cronStatus?.enabled ?? null,
               cronNext,
+              nodes: state.nodes,
+              providersSnapshot: state.providersSnapshot,
+              eventLog: timeline,
               lastProvidersRefresh: state.providersLastSuccess,
               onSettingsChange: (next) => state.applySettings(next),
               onPasswordChange: (next) => (state.password = next),
@@ -357,9 +468,11 @@ export function renderApp(state: AppViewState) {
             })
           : nothing}
 
-        ${state.tab === "chat"
-          ? renderChat({
-              sessionKey: state.sessionKey,
+          ${state.tab === "chat"
+            ? renderChat({
+                assistantName: state.settings.assistantName || state.settings.brandName || "Miya",
+                callMe: state.settings.callMe,
+                sessionKey: state.sessionKey,
               onSessionKeyChange: (next) => {
                 state.sessionKey = next;
                 state.chatMessage = "";
@@ -375,26 +488,152 @@ export function renderApp(state: AppViewState) {
               stream: state.chatStream,
               draft: state.chatMessage,
               connected: state.connected,
-              canSend: state.connected && hasConnectedMobileNode,
+              canSend: state.connected,
               disabledReason: chatDisabledReason,
               sessions: state.sessionsResult,
+              eventLog: timeline,
+              providersSnapshot: state.providersSnapshot,
+              activeInferenceMode: state.inferActiveInferenceMode(),
+              activeModelRef: state.inferActiveModelRef(),
               onRefresh: () => loadChatHistory(state),
               onDraftChange: (next) => (state.chatMessage = next),
               onSend: () => state.handleSendChat(),
+              onSwitchBrain: (mode) => state.handleApplyInferenceMode(mode),
+              onOpenCore: () => state.setTab("config"),
+              onCreateIdea: () => state.handleTalkIdeaCreate(),
+              actionCards: state.cognitive.actions.slice(0, 4),
+              voice: state.cognitive.voice,
+              voiceSupported: state.voiceSupported,
+              voiceListening: state.voiceListening,
+              onVoiceChange: (next) => state.setVoice(next),
+              onVoiceStart: () => state.startStt(),
+              onVoiceStop: () => state.stopStt(),
+              onReadAloud: (text) => state.speak(text),
+              onAction: (id, mode) => state.handleActionCard(id, mode),
+              onReflect: (id, done, usefulness, obstacle) => state.handleActionReflect(id, done, usefulness, obstacle),
             })
           : nothing}
 
-        ${state.tab === "config"
-          ? renderConfig({
-              raw: state.configRaw,
-              valid: state.configValid,
-              issues: state.configIssues,
-              loading: state.configLoading,
-              saving: state.configSaving,
-              connected: state.connected,
-              onRawChange: (next) => (state.configRaw = next),
-              onReload: () => loadConfig(state),
-              onSave: () => saveConfig(state),
+        ${state.tab === "build"
+            ? renderBuild({
+                brandName: state.settings.brandName || state.settings.assistantName || "Miya",
+                assistantName: state.settings.assistantName || state.settings.brandName || "Miya",
+                activeModeLabel:
+                  state.inferActiveInferenceMode() === "local" ? "Local" : "Gemini",
+                biotechMode: state.buildLayout === "pai-biotech",
+                title: state.buildTitle,
+                prompt: state.buildPrompt,
+                refinePrompt: state.buildRefinePrompt,
+                imagePrompt: state.buildImagePrompt,
+                imageSvg: state.buildImageSvg,
+                palette: state.buildPalette,
+              layout: state.buildLayout,
+                code: state.buildCode,
+                activeScreen: state.buildActiveScreen,
+                drafts: state.buildDrafts,
+                history: state.buildHistory,
+                selectedDraftId: state.buildSelectedDraftId,
+              generating: state.buildGenerating,
+                status: state.buildStatus,
+                onTitleChange: (next) => (state.buildTitle = next),
+                onPromptChange: (next) => (state.buildPrompt = next),
+                onRefinePromptChange: (next) => (state.buildRefinePrompt = next),
+                onImagePromptChange: (next) => (state.buildImagePrompt = next),
+                onPaletteChange: (next) => (state.buildPalette = next),
+              onLayoutChange: (next) => (state.buildLayout = next),
+              onScreenChange: (next) => (state.buildActiveScreen = next),
+              onCodeChange: (kind, next, screen) => {
+                if (kind === "screen" && screen) {
+                  state.buildCode = {
+                    ...state.buildCode,
+                    screens: { ...state.buildCode.screens, [screen]: next },
+                  };
+                  return;
+                }
+                state.buildCode = { ...state.buildCode, [kind]: next };
+                },
+                onGenerate: () => state.handleBuildGenerate(),
+                onRefine: () => state.handleBuildRefine(),
+                onGenerateImage: () => state.handleBuildGenerateImage(),
+                onExportImage: () => state.handleBuildExportImage(),
+                onSaveDraft: () => state.handleBuildSaveDraft(),
+              onExport: () => state.handleBuildExport(),
+                onScaffold: () => state.handleBuildScaffold(),
+                onSelectDraft: (id) => state.handleBuildSelectDraft(id),
+                onRestoreHistory: (id) => state.handleBuildRestoreHistory(id),
+                onNewDraft: () => state.handleBuildNewDraft(),
+              onDeleteDraft: (id) => state.handleBuildDeleteDraft(id),
+            })
+          : nothing}
+
+        ${state.tab === "brand"
+          ? renderBrand({
+              brandName: state.settings.brandName || "PAI",
+              assistantName: state.settings.assistantName || "Miya",
+            })
+          : nothing}
+
+
+        ${state.tab === "memory"
+          ? renderMemory({
+              cognitive: state.cognitive,
+              results: state.memoryResults(),
+              query: state.memoryQuery,
+              onQueryChange: (next) => (state.memoryQuery = next),
+              onCreate: (input) => state.handleMemoryCreate(input),
+            })
+          : nothing}
+
+        ${state.tab === "agents"
+          ? renderAgents({
+              cognitive: state.cognitive,
+              onRunAgents: () => state.handleRunAgents(),
+              onAction: (id, mode) => state.handleActionCard(id, mode),
+              onReflect: (id, done, usefulness, obstacle) =>
+                state.handleActionReflect(id, done, usefulness, obstacle),
+            })
+          : nothing}
+
+        ${state.tab === "trust"
+          ? renderTrust({
+              cognitive: state.cognitive,
+              onPermission: (scope, enabled, duration) =>
+                state.handlePermission(scope, enabled, duration),
+            })
+          : nothing}
+
+        ${state.tab === "dashboard" || state.tab === "economy"
+          ? renderDashboard({
+              cognitive: state.cognitive,
+              onWellbeing: (key, value) => state.setWellbeing(key, value),
+            })
+          : nothing}
+
+          ${state.tab === "config"
+            ? renderCore({
+                settings: state.settings,
+                password: state.password,
+                raw: state.configRaw,
+                valid: state.configValid,
+                issues: state.configIssues,
+                loading: state.configLoading,
+                saving: state.configSaving,
+                connected: state.connected,
+                activeInferenceMode: state.inferActiveInferenceMode(),
+                activeModelRef: state.inferActiveModelRef(),
+                improvementIdeas: state.improvementIdeas,
+                ideaDraft: state.coreIdeaDraft,
+                onSettingsChange: (next) => state.applySettings(next),
+                onPasswordChange: (next) => (state.password = next),
+                onIdeaDraftChange: (next) => (state.coreIdeaDraft = next),
+                onIdeaCreate: () => state.handleCoreIdeaCreate(),
+                onIdeaApprove: (id) => state.handleIdeaApprove(id),
+                onIdeaImplemented: (id) => state.handleIdeaImplemented(id),
+                onIdeaDelete: (id) => state.handleIdeaDelete(id),
+                onApplyInferenceMode: (mode) => state.handleApplyInferenceMode(mode),
+                onRawChange: (next) => (state.configRaw = next),
+                onReload: () => loadConfig(state),
+                onSave: () => saveConfig(state),
             })
           : nothing}
 
@@ -417,7 +656,29 @@ export function renderApp(state: AppViewState) {
             })
           : nothing}
       </main>
+      <nav class="mobile-tabs" aria-label="Mobile navigation">
+        ${["overview", "chat", "connections", "sessions", "dashboard"].map((tab) => renderTab(state, tab as Tab))}
+      </nav>
+      ${state.paletteOpen ? renderCommandPalette(state, paletteResults) : nothing}
     </div>
+  `;
+}
+
+function renderPaiMark() {
+  return html`
+    <svg class="brand-mark" viewBox="0 0 96 96" aria-hidden="true">
+      <defs>
+        <linearGradient id="pai-core" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#dff8ee"></stop>
+          <stop offset="55%" stop-color="#94e7c6"></stop>
+          <stop offset="100%" stop-color="#66c8b1"></stop>
+        </linearGradient>
+      </defs>
+      <rect x="10" y="10" width="76" height="76" rx="28" fill="rgba(255,255,255,0.06)" stroke="rgba(180,246,226,0.4)"></rect>
+      <circle cx="48" cy="48" r="18" fill="url(#pai-core)"></circle>
+      <circle cx="48" cy="48" r="29" fill="none" stroke="rgba(173,241,220,0.72)" stroke-width="2.5" stroke-dasharray="3 6"></circle>
+      <path d="M48 19v11M48 66v11M19 48h11M66 48h11M29.5 29.5l7.7 7.7M58.8 58.8l7.7 7.7M66.5 29.5l-7.7 7.7M37.2 58.8l-7.7 7.7" stroke="rgba(220,255,244,0.9)" stroke-width="2.8" stroke-linecap="round"></path>
+    </svg>
   `;
 }
 
@@ -444,6 +705,96 @@ function renderTab(state: AppViewState, tab: Tab) {
     >
       <span>${titleForTab(tab)}</span>
     </a>
+  `;
+}
+
+function countLinkedProviders(snapshot: ProvidersStatusSnapshot | null) {
+  if (!snapshot) return 0;
+  const flags = [
+    snapshot.whatsapp.configured || snapshot.whatsapp.linked || snapshot.whatsapp.running,
+    snapshot.telegram.configured || snapshot.telegram.running,
+    Boolean(snapshot.discord?.configured || snapshot.discord?.running),
+    Boolean(snapshot.signal?.configured || snapshot.signal?.running),
+    Boolean(snapshot.imessage?.configured || snapshot.imessage?.running),
+  ];
+  return flags.filter(Boolean).length;
+}
+
+function pageKickerForTab(tab: Tab) {
+  switch (tab) {
+    case "overview":
+      return "Today";
+    case "chat":
+      return "Workspace";
+    case "build":
+      return "Studio";
+    case "connections":
+      return "Setup";
+    case "sessions":
+      return "History";
+    case "dashboard":
+      return "Wellbeing";
+    case "config":
+      return "Identity";
+    case "brand":
+      return "Visual System";
+    case "debug":
+      return "Advanced";
+    default:
+      return "Control";
+  }
+}
+
+function resolvePaletteResults(query: string) {
+  const allTabs = TAB_GROUPS.flatMap((group) => group.tabs);
+  const needle = query.trim().toLowerCase();
+  return allTabs
+    .filter((tab, index, arr) => arr.indexOf(tab) === index)
+    .map((tab) => ({
+      tab,
+      title: titleForTab(tab),
+      subtitle: subtitleForTab(tab),
+    }))
+    .filter((entry) => {
+      if (!needle) return true;
+      return `${entry.title} ${entry.subtitle}`.toLowerCase().includes(needle);
+    })
+    .slice(0, 8);
+}
+
+function renderCommandPalette(
+  state: AppViewState,
+  results: Array<{ tab: Tab; title: string; subtitle: string }>,
+) {
+  return html`
+    <div class="palette-backdrop" @click=${() => state.closePalette()}>
+      <section class="palette" @click=${(event: Event) => event.stopPropagation()}>
+        <div class="palette-search">
+          <input
+            autofocus
+            .value=${state.paletteQuery}
+            @input=${(event: Event) => {
+              state.paletteQuery = (event.target as HTMLInputElement).value;
+            }}
+            placeholder="Search pages, core settings, and workspaces"
+          />
+        </div>
+        <div class="palette-results">
+          ${results.map(
+            (entry) => html`
+              <button
+                class="palette-item ${state.tab === entry.tab ? "active" : ""}"
+                @click=${() => state.setTab(entry.tab)}
+              >
+                <span class="palette-item__title">${entry.title}</span>
+                <span class="palette-item__sub">${entry.subtitle}</span>
+              </button>
+            `,
+          )}
+          ${results.length === 0 ? html`<div class="palette-empty">No matches yet.</div>` : nothing}
+        </div>
+      </section>
+    </div>
   `;
 }
 
@@ -532,3 +883,5 @@ function renderMonitorIcon() {
     </svg>
   `;
 }
+
+

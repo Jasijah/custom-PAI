@@ -99,6 +99,20 @@ export function formatAssistantErrorText(
   const raw = (msg.errorMessage ?? "").trim();
   if (!raw) return "LLM request failed with an unknown error.";
 
+  const normalized = raw.toLowerCase();
+  if (
+    normalized.includes("quota exceeded") ||
+    normalized.includes("resource_exhausted") ||
+    normalized.includes("too many requests") ||
+    normalized.includes("generate_content_free_tier_requests")
+  ) {
+    const retryMatch =
+      raw.match(/retry in\s+([0-9.]+)s/i) ??
+      raw.match(/"retryDelay"\s*:\s*"([0-9]+)s"/i);
+    const retry = retryMatch?.[1] ? `${retryMatch[1]} seconds` : "a short while";
+    return `Gemini is temporarily rate-limited right now. Please wait ${retry} and try again.`;
+  }
+
   const invalidRequest = raw.match(
     /"type":"invalid_request_error".*?"message":"([^"]+)"/,
   );

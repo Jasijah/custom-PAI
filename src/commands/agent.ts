@@ -41,12 +41,14 @@ import {
   emitAgentEvent,
   registerAgentRunContext,
 } from "../infra/agent-events.js";
+import { isMiyaEnabled, miyaPostRunPipeline } from "../miya/index.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
 import { resolveTelegramToken } from "../telegram/token.js";
 import { normalizeE164 } from "../utils.js";
 
 type AgentCommandOpts = {
   message: string;
+  extraSystemPrompt?: string;
   to?: string;
   sessionId?: string;
   thinking?: string;
@@ -354,17 +356,18 @@ export async function agentCommand(
         if (!raw) return undefined;
         return raw === "imsg" ? "imessage" : raw;
       })();
-    result = await runEmbeddedPiAgent({
-      sessionId,
-      sessionKey,
-      surface,
-      sessionFile,
-      workspaceDir,
-      config: cfg,
-      skillsSnapshot,
-      prompt: body,
-      provider,
-      model,
+      result = await runEmbeddedPiAgent({
+        sessionId,
+        sessionKey,
+        surface,
+        sessionFile,
+        workspaceDir,
+        config: cfg,
+        skillsSnapshot,
+        prompt: body,
+        extraSystemPrompt: opts.extraSystemPrompt,
+        provider,
+        model,
       thinkLevel: resolvedThinkLevel,
       verboseLevel: resolvedVerboseLevel,
       timeoutMs,
@@ -441,6 +444,39 @@ export async function agentCommand(
     }
     sessionStore[sessionKey] = next;
     await saveSessionStore(storePath, sessionStore);
+  }
+
+  if (isMiyaEnabled()) {
+    try {
+      const assistantText = (result.payloads ?? [])
+        .map((payload) => payload.text?.trim() ?? "")
+        .filter(Boolean)
+        .join("\n\n");
+      const miyaResult = await miyaPostRunPipeline({
+        sessionId,
+        workspaceDir,
+        userText: body,
+        assistantText,
+        timestamp: Date.now(),
+        encryptionKey: process.env.MIYA_ENCRYPTION_KEY,
+      });
+      emitAgentEvent({
+        runId: sessionId,
+        stream: "miya",
+        data: {
+          sessionId,
+          memory: miyaResult.memory,
+          suggestions: miyaResult.suggestions,
+          actionCards: miyaResult.actionCards,
+        },
+      });
+    } catch (err) {
+      emitAgentEvent({
+        runId: sessionId,
+        stream: "miya",
+        data: { error: String(err), sessionId },
+      });
+    }
   }
 
   const payloads = result.payloads ?? [];

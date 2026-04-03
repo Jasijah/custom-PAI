@@ -2241,6 +2241,62 @@ describe("gateway server", () => {
     await server.close();
   });
 
+  test("builder.scaffold is advertised and creates a Vite app scaffold", async () => {
+    const cwd = process.cwd();
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "clawdis-builder-"));
+    process.chdir(tempRoot);
+    try {
+      const { server, ws } = await startServerWithClient();
+      const hello = await connectOk(ws);
+      expect(hello.features.methods).toContain("builder.scaffold");
+
+      const res = await rpcReq<{ ok?: boolean; path?: string; files?: string[] }>(
+        ws,
+        "builder.scaffold",
+        {
+          title: "Builder Test",
+          slug: "builder-test",
+          screens: {
+            home: "<main><h1>Home</h1></main>",
+            details: "<main><h1>Details</h1></main>",
+            settings: "<main><h1>Settings</h1></main>",
+          },
+          css: "body { color: black; }",
+          js: "console.log('builder test');",
+          overwrite: true,
+        },
+      );
+
+      expect(res.ok).toBe(true);
+      expect(res.payload?.path).toBe(
+        path.join(tempRoot, "apps", "generated", "builder-test"),
+      );
+      expect(res.payload?.files).toEqual(
+        expect.arrayContaining([
+          "package.json",
+          "index.html",
+          "src/main.js",
+          "src/styles.css",
+          "README.md",
+        ]),
+      );
+
+      const packageJson = JSON.parse(
+        await fs.readFile(
+          path.join(tempRoot, "apps", "generated", "builder-test", "package.json"),
+          "utf-8",
+        ),
+      ) as { scripts?: Record<string, string> };
+      expect(packageJson.scripts?.dev).toBe("vite");
+
+      ws.close();
+      await server.close();
+    } finally {
+      process.chdir(cwd);
+      await fs.rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   test("rejects non-connect first request", async () => {
     const { server, ws } = await startServerWithClient();
     ws.send(JSON.stringify({ type: "req", id: "h1", method: "health" }));

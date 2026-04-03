@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180">
+  <defs>
+    <linearGradient id="pai-core" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ecfff6"/>
+      <stop offset="52%" stop-color="#9ae6c8"/>
+      <stop offset="100%" stop-color="#63c6af"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="180" rx="42" fill="#0b1512"/>
+  <g transform="translate(34 24)">
+    <rect x="0" y="0" width="132" height="132" rx="32" fill="rgba(255,255,255,0.03)" stroke="rgba(180,238,220,0.22)"/>
+    <circle cx="66" cy="66" r="21" fill="url(#pai-core)"/>
+    <circle cx="66" cy="66" r="38" fill="none" stroke="#9ce5c7" stroke-width="3" stroke-dasharray="3 7"/>
+    <path d="M66 17v16M66 99v16M17 66h16M99 66h16M32.5 32.5l10.5 10.5M88.9 88.9l10.5 10.5M99.5 32.5 89 43M43 89l-10.5 10.5" stroke="#e2fff2" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <g fill="#ebf7f2">
+    <text x="202" y="82" font-size="58" font-family="'Space Grotesk', 'Work Sans', sans-serif" letter-spacing="10">PAI</text>
+    <text x="204" y="118" font-size="18" font-family="'Work Sans', sans-serif" fill="#9bbcaf">personal ai</text>
+    <text x="204" y="144" font-size="15" font-family="'IBM Plex Mono', monospace" fill="#78c8b0">quiet biotech intelligence</text>
+  </g>
+</svg>

@@ -3,6 +3,8 @@ import {
   type AgentEvent,
   AgentEventSchema,
   AgentParamsSchema,
+  type BuilderScaffoldParams,
+  BuilderScaffoldParamsSchema,
   type ChatAbortParams,
   ChatAbortParamsSchema,
   type ChatEvent,
@@ -213,6 +215,8 @@ export const validateChatSendParams = ajv.compile(ChatSendParamsSchema);
 export const validateChatAbortParams = ajv.compile<ChatAbortParams>(
   ChatAbortParamsSchema,
 );
+export const validateBuilderScaffoldParams =
+  ajv.compile<BuilderScaffoldParams>(BuilderScaffoldParamsSchema);
 export const validateChatEvent = ajv.compile(ChatEventSchema);
 export const validateWebLoginStartParams = ajv.compile<WebLoginStartParams>(
   WebLoginStartParamsSchema,
@@ -275,6 +279,7 @@ export {
   CronRunsParamsSchema,
   ChatHistoryParamsSchema,
   ChatSendParamsSchema,
+  BuilderScaffoldParamsSchema,
   TickEventSchema,
   ShutdownEventSchema,
   ProtocolSchemas,
@@ -329,4 +334,5 @@ export type {
   CronRunParams,
   CronRunsParams,
   CronRunLogEntry,
+  BuilderScaffoldParams,
 };

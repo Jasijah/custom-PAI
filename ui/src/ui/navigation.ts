@@ -1,11 +1,10 @@
 export const TAB_GROUPS = [
-  { label: "Chat", tabs: ["chat"] },
+  { label: "Daily", tabs: ["chat", "build", "dashboard", "memory", "agents"] },
   {
-    label: "Control",
-    tabs: ["overview", "connections", "instances", "sessions", "cron"],
+    label: "Home",
+    tabs: ["overview", "config", "brand", "connections", "sessions", "instances", "cron"],
   },
-  { label: "Agent", tabs: ["skills", "nodes"] },
-  { label: "Settings", tabs: ["config", "debug"] },
+  { label: "Advanced", tabs: ["trust", "skills", "nodes", "economy", "debug"] },
 ] as const;
 
 export type Tab =
@@ -17,7 +16,14 @@ export type Tab =
   | "skills"
   | "nodes"
   | "chat"
+  | "build"
+  | "memory"
+  | "agents"
+  | "trust"
+  | "dashboard"
+  | "economy"
   | "config"
+  | "brand"
   | "debug";
 
 const TAB_PATHS: Record<Tab, string> = {
@@ -29,13 +35,21 @@ const TAB_PATHS: Record<Tab, string> = {
   skills: "/skills",
   nodes: "/nodes",
   chat: "/chat",
-  config: "/config",
+  build: "/build",
+  memory: "/memory",
+  agents: "/agents",
+  trust: "/trust",
+  dashboard: "/dashboard",
+  economy: "/economy",
+  config: "/core",
+  brand: "/brand",
   debug: "/debug",
 };
 
 const PATH_TO_TAB = new Map(
   Object.entries(TAB_PATHS).map(([tab, path]) => [path, tab as Tab]),
 );
+PATH_TO_TAB.set("/config", "config");
 
 function normalizeBasePath(basePath: string): string {
   if (!basePath) return "";
@@ -81,25 +95,39 @@ export function tabFromPath(pathname: string, basePath = ""): Tab | null {
 export function titleForTab(tab: Tab) {
   switch (tab) {
     case "overview":
-      return "Overview";
+      return "Home";
     case "connections":
-      return "Connections";
+      return "Linked Apps";
     case "instances":
-      return "Instances";
+      return "Devices";
     case "sessions":
-      return "Sessions";
+      return "Conversations";
     case "cron":
-      return "Cron Jobs";
+      return "Routines";
     case "skills":
       return "Skills";
     case "nodes":
-      return "Nodes";
+      return "Connected Nodes";
     case "chat":
-      return "Chat";
+      return "Talk";
+    case "build":
+      return "Build";
+    case "memory":
+      return "Memory";
+    case "agents":
+      return "Suggestions";
+    case "trust":
+      return "Privacy & Access";
+    case "dashboard":
+      return "Daily Rhythm";
+    case "economy":
+      return "Budget";
     case "config":
-      return "Config";
+      return "Core";
+    case "brand":
+      return "Brand";
     case "debug":
-      return "Debug";
+      return "Developer Tools";
     default:
       return "Control";
   }
@@ -108,25 +136,39 @@ export function titleForTab(tab: Tab) {
 export function subtitleForTab(tab: Tab) {
   switch (tab) {
     case "overview":
-      return "Gateway status, entry points, and a fast health read.";
+      return "A calm home view with health, activity, and the next thing to do.";
     case "connections":
-      return "Link providers and keep transport settings in sync.";
+      return "Connect Gemini and messaging apps in one setup-focused place.";
     case "instances":
-      return "Presence beacons from connected clients and nodes.";
+      return "See which phones, browsers, and clients are currently available.";
     case "sessions":
-      return "Inspect active sessions and adjust per-session defaults.";
+      return "Browse recent conversations and tune per-session behavior.";
     case "cron":
-      return "Schedule wakeups and recurring agent runs.";
+      return "Schedule reminders, wakeups, and recurring assistant runs.";
     case "skills":
       return "Manage skill availability and API key injection.";
     case "nodes":
-      return "Paired devices, capabilities, and command exposure.";
+      return "Inspect paired nodes, capabilities, and command access.";
     case "chat":
-      return "Direct gateway chat session for quick interventions.";
+      return "Your main everyday workspace for talking, listening, and following along.";
+    case "build":
+      return "Create app ideas, shape them, and preview them live without leaving the assistant.";
+    case "memory":
+      return "Search saved context and capture important things worth remembering.";
+    case "agents":
+      return "Review assistant suggestions and turn them into next steps.";
+    case "trust":
+      return "Control permissions, grants, and the audit history.";
+    case "dashboard":
+      return "A personal planning surface for priorities, wellbeing, and momentum.";
+    case "economy":
+      return "Track how your assistant budget is allocated.";
     case "config":
-      return "Edit ~/.clawdis/clawdis.json safely.";
+      return "Personalize identity, switch brains, and tune how your assistant speaks to you.";
+    case "brand":
+      return "A dedicated home for the PAI brand system, assets, and visual direction.";
     case "debug":
-      return "Gateway snapshots, events, and manual RPC calls.";
+      return "Raw snapshots, logs, and manual tools for troubleshooting.";
     default:
       return "";
   }

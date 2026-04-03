@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { BRAND_DEFAULT_STATE_DIR } from "./branding.js";
+import { getPathAdapterForInput } from "./platform/index.js";
 import { logVerbose, shouldLogVerbose } from "./globals.js";
 
 export async function ensureDir(dir: string) {
@@ -107,22 +109,41 @@ export function resolveUserPath(input: string): string {
 export function resolveHomeDir(): string | undefined {
   const envHome = process.env.HOME?.trim();
   if (envHome) return envHome;
-  const envProfile = process.env.USERPROFILE?.trim();
-  if (envProfile) return envProfile;
   try {
     const home = os.homedir();
     return home?.trim() ? home : undefined;
   } catch {
+    const envProfile = process.env.USERPROFILE?.trim();
+    if (envProfile) return envProfile;
     return undefined;
   }
+}
+
+export function resolveConfigHomeDir(): string | undefined {
+  try {
+    const home = os.homedir();
+    if (home?.trim()) return home.trim();
+  } catch {
+    // fall through to env-based fallbacks
+  }
+  const envHome = process.env.HOME?.trim();
+  if (envHome) return envHome;
+  const envProfile = process.env.USERPROFILE?.trim();
+  if (envProfile) return envProfile;
+  return undefined;
 }
 
 export function shortenHomePath(input: string): string {
   if (!input) return input;
   const home = resolveHomeDir();
   if (!home) return input;
-  if (input === home) return "~";
-  if (input.startsWith(`${home}/`)) return `~${input.slice(home.length)}`;
+  const normalizedInput = path.resolve(input);
+  const normalizedHome = path.resolve(home);
+  if (normalizedInput === normalizedHome) return "~";
+  const rel = path.relative(normalizedHome, normalizedInput);
+  if (rel && rel !== "." && !rel.startsWith("..") && !path.isAbsolute(rel)) {
+    return `~/${rel.split(path.sep).join("/")}`;
+  }
   return input;
 }
 
@@ -133,5 +154,9 @@ export function shortenHomeInString(input: string): string {
   return input.split(home).join("~");
 }
 
-// Fixed configuration root; legacy ~/.clawdis is no longer used.
-export const CONFIG_DIR = path.join(os.homedir(), ".clawdis");
+// Fixed configuration root; can be branded via environment defaults.
+const resolvedConfigHome = resolveConfigHomeDir() ?? os.homedir();
+export const CONFIG_DIR = getPathAdapterForInput(resolvedConfigHome).join(
+  resolvedConfigHome,
+  BRAND_DEFAULT_STATE_DIR,
+);

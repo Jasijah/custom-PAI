@@ -9,6 +9,13 @@ import {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function delayedDoneCommand() {
+  if (process.platform === "win32") {
+    return 'powershell -NoProfile -Command "Start-Sleep -Milliseconds 50; Write-Output done"';
+  }
+  return `node -e "setTimeout(() => { console.log('done') }, 50)"`;
+}
+
 async function waitForCompletion(sessionId: string) {
   let status = "running";
   const deadline = Date.now() + 2000;
@@ -32,7 +39,7 @@ beforeEach(() => {
 describe("bash tool backgrounding", () => {
   it("backgrounds after yield and can be polled", async () => {
     const result = await bashTool.execute("call1", {
-      command: "node -e \"setTimeout(() => { console.log('done') }, 50)\"",
+      command: delayedDoneCommand(),
       yieldMs: 10,
     });
 
