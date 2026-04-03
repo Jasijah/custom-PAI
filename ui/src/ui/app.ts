@@ -807,7 +807,7 @@ export class ClawdisApp extends LitElement {
           id: localModelId,
           name: `Local ${localModelId}`,
           api: "openai-completions",
-          reasoning: true,
+          reasoning: false,
           input: ["text"],
           cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
           contextWindow: 32768,
@@ -829,6 +829,9 @@ export class ClawdisApp extends LitElement {
       Gemini: apiModelRef,
       Local: localModelRef,
     };
+    if (mode === "local") {
+      agent.thinkingDefault = "off";
+    }
 
     models.mode = typeof models.mode === "string" ? models.mode : "merge";
     models.providers = providers;
@@ -842,7 +845,10 @@ export class ClawdisApp extends LitElement {
     await saveConfig(this);
     await loadConfig(this);
 
-    await patchSession(this, this.sessionKey, { model: null });
+    await patchSession(this, this.sessionKey, {
+      model: null,
+      thinkingLevel: mode === "local" ? null : undefined,
+    });
 
     this.buildStatus =
       mode === "local"

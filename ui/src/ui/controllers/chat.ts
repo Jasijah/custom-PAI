@@ -206,3 +206,4 @@ function extractText(message: unknown): string | null {
   if (typeof m.text === "string") return m.text;
   return null;
 }
+
