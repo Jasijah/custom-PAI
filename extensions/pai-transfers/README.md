@@ -21,3 +21,23 @@ Requires Python 3.10+ and no external packages. `TransferService('transfers.sqli
 ## State flow
 
 `proposed → approved → settled`, or `proposed → rejected`. Expired intents cannot be approved or settled. Settlement is idempotent for already settled records. This module is an integration scaffold, not a production payment system.
+
+## Install as a separate package
+
+From this repository's `extensions/pai-transfers` directory, run `python3 -m pip install .` in a virtual environment. From GitHub, use:
+
+```bash
+python3 -m pip install 'git+https://github.com/Jasijah/custom-PAI.git@feature/pai-transfer-intents#subdirectory=extensions/pai-transfers'
+```
+
+The installed `pai-transfer` command works on Python 3.10+ devices. Agent platforms that recognize `SKILL.md` can import this directory as an agent skill; otherwise copy its short workflow into your agent's skill/instruction directory. **Installing the Python package alone does not automatically register the agent skill.** The agent should only be allowed to call `propose` and `show`.
+
+```bash
+pai-transfer propose --sender pai:alice --recipient pai:bob --network pip-sandbox --asset PIP --amount 2.50
+pai-transfer show <intent-id>
+# Owner runs this in their own terminal:
+pai-transfer approve <intent-id> --owner pai:alice
+pai-transfer settle <intent-id>  # simulation receipt, no real transfer
+```
+
+This package is self-contained in this directory and does not require the main PAI application. It currently lives in the custom-PAI repository; its installation and operation are independent.
